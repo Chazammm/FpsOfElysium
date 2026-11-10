@@ -1,0 +1,4 @@
+icon "banner.tga"
+description "Smoother map rendering. Preserves map objects and graphics quality. Requires the FPS-enabled CoE5SE 3.2.2 loader and Windows CoE5 5.43. Experimental."
+coeversion 5.43
+requires CoE5SE

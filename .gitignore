@@ -1,0 +1,14 @@
+/build/
+/dist/
+*.dll
+*.exe
+*.o
+*.obj
+*.pdb
+*.log
+!evidence/*.log
+.env
+.env.*
+*.dmp
+*.sav
+*.bak

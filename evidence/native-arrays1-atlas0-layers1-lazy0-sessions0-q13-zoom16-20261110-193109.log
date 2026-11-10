@@ -1,0 +1,25 @@
+native_enabled game=5.43 coe5se=absent quality_preserved=1
+fps_texture id=54 width=64 height=64 min=2703 mag=2601 wrap=812f,812f
+fps_texture id=49 width=64 height=64 min=2703 mag=2601 wrap=812f,812f
+fps_texture id=52 width=64 height=64 min=2703 mag=2601 wrap=812f,812f
+fps_texture id=53 width=64 height=64 min=2703 mag=2601 wrap=812f,812f
+fps_texture id=41 width=128 height=128 min=2703 mag=2601 wrap=812f,812f
+fps_texture id=62 width=64 height=64 min=2703 mag=2601 wrap=812f,812f
+fps_texture id=51 width=64 height=64 min=2703 mag=2601 wrap=812f,812f
+fps_texture id=55 width=64 height=64 min=2703 mag=2601 wrap=812f,812f
+fps_texture id=42 width=128 height=128 min=2703 mag=2601 wrap=812f,812f
+fps_texture id=63 width=64 height=64 min=2703 mag=2601 wrap=812f,812f
+fps_texture id=43 width=128 height=128 min=2703 mag=2601 wrap=812f,812f
+fps_texture id=64 width=64 height=64 min=2703 mag=2601 wrap=812f,812f
+fps_lab branch=highest thread=41904 frames=300 mean_ms=12.8546 max_ms=86.4443
+fps_detail mode=0 frames=300 wait_ms=0.0818 wait_calls=1078282 buckets_ms=0.0716 bucket_sort_cpu_ms=0.9773 sprite_sort_ms=0.0051 candidate_ms=0.0000 sort_calls=299 mismatches=0 sprites_min=29 sprites_max=336 zoom=16.0000 camera=40.0000,40.0000 plane=0 quality=13
+fps_detail_arrays enabled=1 draw_ms=7.2372 draws=1367589 vertices=49858888 replays=0 lazy_binds=0 source_binds=12310263 client_sessions=0 client_setups=1367589
+fps_texture_array enabled=1 status=ready GLSL130 compatibility original UV and mip layers uploads=105 rejected=4 bytes=27961344 hits=12464722
+fps_detail_gl batch=0 color_cache=0 end_ms=0.0000 bind_ms=0.0000 color_ms=0.0000 skipped=0 oracle=0
+fps_detail_draw frames=300 decor_ms=11.0508 decor_calls=12506594 count=41798
+fps_lab branch=highest thread=41904 frames=300 mean_ms=12.5575 max_ms=16.2328
+fps_detail mode=0 frames=300 wait_ms=0.0822 wait_calls=1083916 buckets_ms=0.0693 bucket_sort_cpu_ms=0.9802 sprite_sort_ms=0.0070 candidate_ms=0.0000 sort_calls=300 mismatches=0 sprites_min=276 sprites_max=323 zoom=16.0000 camera=40.0000,40.0000 plane=0 quality=13
+fps_detail_arrays enabled=1 draw_ms=7.2854 draws=1380452 vertices=49990800 replays=0 lazy_binds=0 source_binds=12351092 client_sessions=0 client_setups=1380452
+fps_texture_array enabled=1 status=ready GLSL130 compatibility original UV and mip layers uploads=105 rejected=4 bytes=27961344 hits=24962422
+fps_detail_gl batch=0 color_cache=0 end_ms=0.0000 bind_ms=0.0000 color_ms=0.0000 skipped=0 oracle=0
+fps_detail_draw frames=300 decor_ms=10.7005 decor_calls=12539700 count=41798

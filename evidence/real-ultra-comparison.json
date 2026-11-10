@@ -1,0 +1,27 @@
+{
+  "requested_width": 2560,
+  "requested_height": 1440,
+  "quality": "Ultra",
+  "zoom": 12,
+  "camera": [
+    53,
+    27
+  ],
+  "plane": 0,
+  "seconds_per_capture": 15,
+  "mod_build_measured": "0.1.0 / 1CE3A4BE42505A83DB1F37FA2A81A303E4261C1565C0EF25AA7329BD5A8557AD",
+  "off": {
+    "frames": 545,
+    "mean_ms": 27.379583669724774,
+    "fps": 36.523564859963855,
+    "p95_ms": 27.7638
+  },
+  "on": {
+    "frames": 958,
+    "mean_ms": 15.624668371607521,
+    "fps": 64.00135837872612,
+    "p95_ms": 20.5767
+  },
+  "fps_improvement_percent": 75.23305467063727,
+  "caveat": "Separate launches; same copied save and exact recorded camera/zoom/quality, animated scene not pixel-identical."
+}

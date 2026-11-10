@@ -1,0 +1,5 @@
+newsetting enabled
+onoff
+default 1
+label "Smoother map rendering"
+tip "Batch map decorations while preserving their order, original textures and graphics quality. Turn off to use the original rendering path. Experimental, Windows CoE5 5.43 only."
