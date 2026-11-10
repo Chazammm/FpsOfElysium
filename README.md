@@ -35,6 +35,8 @@ The exact supported EXE SHA-256 is `489d0b82fa790ec36e69a23e2335d0c2048fa57f4051
 
 For startup problems inspect `coe5mod.log` beside the launched executable. A successful load reports `fps_mod initialized` and, once the map is drawn, `fps_mod renderer_ready`. A loader and plugin hash mismatch requires rebuilding both as a matching pair. A game hash/signature mismatch leaves the optimization disabled.
 
+AMD/NVIDIA: the code uses standard OpenGL capabilities and needs no separate vendor build. AMD RX 7900 XTX has been tested; NVIDIA compatibility is expected but not yet hardware-verified. See the [GPU compatibility audit](docs/GPU_COMPATIBILITY.md) for requirements, evidence and the remaining validation.
+
 ## Credits and license
 
 Original plugin code, testing tools and integration extension in this repository are MIT licensed. CoE5 and CoE5SE belong to their respective authors and are separate dependencies; the repository's license does not apply to their files. The investigation used the installed game, native runtime probes, REA/Ghidra and AMD PresentMon. No game executable, decompiled game source, extracted game art, user saves or upstream CoE5SE source is included.
