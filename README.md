@@ -1,6 +1,6 @@
 # FpsOfElysium
 
-Experimental rendering optimization for **Conquest of Elysium 5.43, Windows x64**, using **CoE5SE 3.2.2 / API 11**. It reduces the overhead of drawing large, zoomed-out maps while retaining the selected Highest/Ultra quality.
+Experimental rendering optimization **0.1.3** for **Conquest of Elysium 5.43, Windows x64**, using **CoE5SE 3.2.2 / API 11**. It reduces the overhead of drawing large, zoomed-out maps while retaining the selected Highest/Ultra quality.
 
 The original map path submits tens of thousands of small decoration draws. This mod batches compatible consecutive decorations using texture arrays, preserves their original texture coordinates and complete existing mip chains, defers redundant source-texture bindings, and reuses client-array setup between compatible batches. It preserves object order and uses the original path for unsupported textures and states. It changes no gameplay, camera controls, worker count or quality setting.
 
@@ -8,9 +8,9 @@ The original map path submits tens of thousands of small decoration draws. This 
 
 ## Results and quality checks
 
-On an RX 7900 XTX, the copied real-save benchmark at Ultra improved from **36.5 FPS off to 64.0 FPS on (+75.2%)**. That full FPS measurement used version 0.1.0; it has not been repeated for 0.1.2. Both 15-second captures used a requested 2560 × 1440 window and the same read-back plane, zoom and camera. Separate launches mean the animated scenes were not pixel-identical.
+On an RX 7900 XTX, the copied real-save benchmark at Ultra improved from **36.5 FPS off to 64.0 FPS on (+75.2%)**. That full FPS measurement used version 0.1.0; it has not been repeated for later versions. Both 15-second captures used a requested 2560 × 1440 window and the same read-back plane, zoom and camera. Separate launches mean the animated scenes were not pixel-identical.
 
-Version 0.1.2 additionally reduces repeated texture binding and client-array setup. See [measurement details](docs/PERFORMANCE.md) for section timings and their limits. Image comparisons retain all details and have shown only a handful of RGBA channel differences, at most 1/255. The images are not perfectly bit-identical. These are targeted tests, not a guarantee for every GPU, plane or mod combination.
+Version 0.1.2 additionally reduces repeated texture binding and client-array setup. Version 0.1.3 fixes texture-cache lifetime and GLU-update handling and adds a VAO compatibility guard. See [measurement details](docs/PERFORMANCE.md) for section timings and their limits. Image comparisons retain all details and have shown only a handful of RGBA channel differences, at most 1/255. The images are not perfectly bit-identical. These are targeted tests, not a guarantee for every GPU, plane or mod combination. The full FPS benchmark has not been repeated for these updates.
 
 ## Build
 
@@ -20,14 +20,14 @@ Dependencies are obtained separately: the user's own CoE5 5.43 installation, the
 .\scripts\Build.ps1 -Compiler 'C:\tools\llvm-mingw\bin\x86_64-w64-mingw32-clang.exe' -CoE5SESource 'C:\tools\CoE5SE\src'
 ```
 
-This builds the plugin and a matching adapted loader in `build`, then checks null/API-version and foreign-executable guards. The loader is built from the separately supplied CoE5SE source using its `LOADER_EXTRA_HEADER` extension. Upstream loader/SDK files and compiled loader binaries are not redistributed in this repository. Rebuilding the plugin requires rebuilding its matching loader.
+This builds the plugin and a matching adapted loader in `build`, checks texture-cache regressions, then checks null/API-version and foreign-executable guards. The loader is built from the separately supplied CoE5SE source using its `LOADER_EXTRA_HEADER` extension. Upstream loader/SDK files and compiled loader binaries are not redistributed in this repository or its release assets. Rebuilding the plugin requires rebuilding its matching loader. The release ZIP contains the mod plugin and metadata; the matching adapted loader must be built separately using this script and the separate upstream source.
 
 ## Test installation and removal
 
 1. Close the game. Use a separate game/profile copy with the full CoE5SE 3.2.2 already installed according to its own instructions. Back up that test profile before changing it.
 2. Back up the test profile's `mods/CoE5SE/coe5se_loader.dll`, then replace it with your matching `build/coe5se_loader.dll`. Keep the remaining CoE5SE files from the same 3.2.2 installation.
 3. Copy `mod/FPSofElysiumSE` to the same profile's local `mods` directory and add `build/FPSofElysiumSE.c5plugin.dll` inside it. Enable CoE5SE and FPSofElysiumSE and follow the normal plugin approval prompt.
-4. The “Smoother map rendering” setting defaults to on. Its startup on/off paths are verified; interactive switching through the Mod Settings screen has not been checked directly.
+4. The “Smoother map rendering” setting defaults to on. Its startup on/off paths and the main-menu UI toggle/reset are verified. Mid-map live switching is not comprehensively tested.
 
 To remove it, close the game, disable FPSofElysiumSE, and restore the backed-up original loader. Disabling its setting uses the original Highest/Ultra drawing path while the plugin remains loaded.
 

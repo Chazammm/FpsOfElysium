@@ -30,3 +30,11 @@ The Ultra zoom-16 check found 4, 1 and 1 differing channel values out of 3,686,4
 The new oracle also compares the final source/array texture bindings, program, client-active texture unit, vertex/color/texture-array formats, pointers and enabled states, and current color/texture coordinates. The checked states matched after each tested draw, and the retained client-array session was closed. This targeted state check does not prove compatibility with arbitrary native plugins or every OpenGL extension.
 
 Unsupported textures and states use original immediate drawing. No texture resolution, mip level, decoration count, drawing order or quality setting is intentionally reduced. Longer gameplay, every plane, other GPUs and third-party native graphics modifications remain follow-up work.
+
+## 0.1.3 correctness audit
+
+The original renderer drawn twice against the restored background was bit-exact in all three control frames. Two laboratory color-varying shader alternatives still produced occasional one-unit channel differences, so the production shader was retained. The measured differences are isolated 1/255 changes, not missing details or reduced texture resolution; bit-exact equivalence across GPUs is not established.
+
+The audit found that invalidation/deletion did not reclaim texture-array layers or deleted cache keys. It also found that the production plugin did not invalidate a cached texture when the game rebuilt its mipmaps through GLU, whose uploads bypass the game's OpenGL import slot. Version 0.1.3 fixes these cases and refuses capture with a nonzero VAO bound. The CPU regression covers 20,000 updates, 20,000 deleted-name cycles, wrapped collisions and a full table. A GPU test uploads known pixels, caches them, rebuilds the same texture through the production GLU wrapper, verifies the new pixels and reused layer, deletes the texture and checks removal, and exercises the nonzero-VAO guard. The native forwarder has no separate invalidation path that could mask a broken production wrapper.
+
+These checks and the framebuffer/final-state oracle passed. This correctness release has no new whole-game FPS measurement.

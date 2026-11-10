@@ -12,6 +12,7 @@ typedef struct {
 typedef struct {
     unsigned texture,min_filter,mag_filter;
     int size,last_level,layers,used;
+    unsigned char occupied[256];
 } FpsTextureArrayPage;
 typedef struct { unsigned source;int decision;FpsTextureLayer value; } FpsTextureArrayEntry;
 static int texture_array_enabled;
@@ -91,8 +92,20 @@ static int ta_build_program(void) {
         "#version 130\n"
         "uniform sampler2DArray sourceImages;in vec2 sampleUV;in vec4 sampleColor;flat in int sampleLayer;\n"
         "void main(){gl_FragColor=texture(sourceImages,vec3(sampleUV,float(sampleLayer)))*sampleColor;}\n";
-    unsigned vs=ta_shader(0x8b31,vertex);if(!vs)return 0;
-    unsigned fs=ta_shader(0x8b30,fragment);if(!fs){ta_delete_shader(vs);return 0;}
+    const char *vertex_source=vertex,*fragment_source=fragment;
+#ifndef FPS_SE_MOD
+    char variant[8];int selected=0;
+    if(GetEnvironmentVariableA("FPS_SHADER_VARIANT",variant,sizeof(variant)))selected=atoi(variant);
+    if(selected==1) {
+        vertex_source="#version 130\nout vec2 sampleUV;flat out int sampleLayer;\nvoid main(){gl_Position=ftransform();sampleUV=gl_MultiTexCoord0.xy;sampleLayer=int(gl_MultiTexCoord0.z+0.5);gl_FrontColor=clamp(gl_Color,0.0,1.0);gl_BackColor=gl_FrontColor;}\n";
+        fragment_source="#version 130\nuniform sampler2DArray sourceImages;in vec2 sampleUV;flat in int sampleLayer;\nvoid main(){gl_FragColor=texture(sourceImages,vec3(sampleUV,float(sampleLayer)))*gl_Color;}\n";
+    } else if(selected==2) {
+        vertex_source="#version 130\nout vec2 sampleUV;flat out vec4 sampleColor;flat out int sampleLayer;\nvoid main(){gl_Position=ftransform();sampleUV=gl_MultiTexCoord0.xy;sampleLayer=int(gl_MultiTexCoord0.z+0.5);sampleColor=clamp(gl_Color,0.0,1.0);}\n";
+        fragment_source="#version 130\nuniform sampler2DArray sourceImages;in vec2 sampleUV;flat in vec4 sampleColor;flat in int sampleLayer;\nvoid main(){gl_FragColor=texture(sourceImages,vec3(sampleUV,float(sampleLayer)))*sampleColor;}\n";
+    }
+#endif
+    unsigned vs=ta_shader(0x8b31,vertex_source);if(!vs)return 0;
+    unsigned fs=ta_shader(0x8b30,fragment_source);if(!fs){ta_delete_shader(vs);return 0;}
     unsigned program=ta_create_program();
     if(!program) {ta_delete_shader(vs);ta_delete_shader(fs);return 0;}
     ta_attach_shader(program,vs);ta_attach_shader(program,fs);ta_link_program(program);
@@ -196,8 +209,22 @@ static FpsTextureArrayPage *ta_find_page(int size,int last,unsigned min,unsigned
         int w=size>>level;ta_image3d(0x8c1a,level,0x8058,w,w,layers,0,0x1908,0x1401,NULL);
         int actual=0;ta_get_level(0x8c1a,level,0x1000,&actual);if(actual!=w){ta_delete(1,&texture);return NULL;}
     }
-    FpsTextureArrayPage *p=&ta_pages[ta_page_count++];*p=(FpsTextureArrayPage){texture,min,mag,size,last,layers,0};
+    FpsTextureArrayPage *p=&ta_pages[ta_page_count++];
+    *p=(FpsTextureArrayPage){.texture=texture,.min_filter=min,.mag_filter=mag,.size=size,.last_level=last,.layers=layers};
     ta_bytes+=(long long)one*layers;return p;
+}
+static int ta_available_layer(const FpsTextureArrayPage *page) {
+    for(int i=0;i<page->layers;i++)if(!page->occupied[i])return i;
+    return -1;
+}
+static void ta_release_layer(FpsTextureLayer *value) {
+    for(int i=0;i<ta_page_count;i++) {
+        FpsTextureArrayPage *page=&ta_pages[i];
+        if(page->texture==value->array_texture && value->layer>=0 && value->layer<page->layers && page->occupied[value->layer]) {
+            page->occupied[value->layer]=0;page->used--;break;
+        }
+    }
+    memset(value,0,sizeof(*value));
 }
 static void ta_packing(void) {
     ta_pixel_store(0x0d05,1);ta_pixel_store(0x0d02,0);ta_pixel_store(0x0d03,0);ta_pixel_store(0x0d04,0);
@@ -213,11 +240,13 @@ static int ta_clone(unsigned source,FpsTextureLayer *out) {
     memory=HeapAlloc(GetProcessHeap(),0,(size_t)size*size*4);if(!memory)goto done;
     ta_push_client(0x00000001u);ta_packing();FpsTextureArrayPage *p=ta_find_page(size,last,min,mag);
     if(!p){ta_pop_client();goto done;}
+    int layer=ta_available_layer(p);if(layer<0){ta_pop_client();goto done;}
     for(int level=0;level<=last;level++) {
         int w=size>>level;ta_bind(0x0de1,source);ta_get_image(0x0de1,level,0x1908,0x1401,memory);
-        ta_bind(0x8c1a,p->texture);ta_subimage3d(0x8c1a,level,0,0,p->used,w,w,1,0x1908,0x1401,memory);
+        ta_bind(0x8c1a,p->texture);ta_subimage3d(0x8c1a,level,0,0,layer,w,w,1,0x1908,0x1401,memory);
     }
-    ta_pop_client();*out=(FpsTextureLayer){source,p->texture,p->used++,size,size,last+1};ta_uploads++;ok=1;
+    ta_pop_client();p->occupied[layer]=1;p->used++;
+    *out=(FpsTextureLayer){source,p->texture,layer,size,size,last+1};ta_uploads++;ok=1;
 done:
     if(memory)HeapFree(GetProcessHeap(),0,memory);
     ta_bind(0x8c1a,(unsigned)before_array);ta_bind(0x0de1,(unsigned)before2d);return ok;
@@ -237,7 +266,36 @@ static int array_texture_prepare(unsigned source,FpsTextureLayer *out) {
 }
 static void array_texture_forget(unsigned source) {
     unsigned index=(source*2654435761u)&(TA_CACHE_SIZE-1);
-    for(unsigned i=0;i<TA_CACHE_SIZE;i++){FpsTextureArrayEntry *e=&ta_entries[(index+i)&(TA_CACHE_SIZE-1)];if(e->source==source){e->decision=0;return;}if(!e->source)return;}
+    if(!source)return;
+    for(unsigned i=0;i<TA_CACHE_SIZE;i++) {
+        FpsTextureArrayEntry *e=&ta_entries[(index+i)&(TA_CACHE_SIZE-1)];
+        if(e->source==source){ta_release_layer(&e->value);e->decision=0;return;}
+        if(!e->source)return;
+    }
+}
+static void array_texture_remove(unsigned source) {
+    if(!source)return;
+    array_texture_forget(source);
+    unsigned start=(source*2654435761u)&(TA_CACHE_SIZE-1);
+    for(unsigned i=0;i<TA_CACHE_SIZE;i++) {
+        unsigned index=(start+i)&(TA_CACHE_SIZE-1);
+        if(!ta_entries[index].source)return;
+        if(ta_entries[index].source!=source)continue;
+        memset(&ta_entries[index],0,sizeof(ta_entries[index]));
+        // Rehash the following probe cluster so lookups still stop safely at
+        // an empty slot and deleted texture names never exhaust the table.
+        for(unsigned next=1;next<TA_CACHE_SIZE;next++) {
+            unsigned current=(index+next)&(TA_CACHE_SIZE-1);
+            FpsTextureArrayEntry moved=ta_entries[current];if(!moved.source)break;
+            memset(&ta_entries[current],0,sizeof(ta_entries[current]));
+            unsigned home=(moved.source*2654435761u)&(TA_CACHE_SIZE-1);
+            for(unsigned probe=0;probe<TA_CACHE_SIZE;probe++) {
+                FpsTextureArrayEntry *target=&ta_entries[(home+probe)&(TA_CACHE_SIZE-1)];
+                if(!target->source){*target=moved;break;}
+            }
+        }
+        return;
+    }
 }
 static int array_texture_begin_draw(unsigned texture) {
     if(ta_drawing || !ta_allowed_state())return 0;

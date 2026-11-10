@@ -1,0 +1,1 @@
+PASS: 20000 layer updates reuse storage; 20000 deleted-name cycles; wrapped collision clusters and full-table deletion remain searchable.

@@ -13,6 +13,10 @@ $out=Join-Path $root 'build';New-Item -ItemType Directory -Path $out -Force | Ou
 $plugin=Join-Path $out 'FPSofElysiumSE.c5plugin.dll'
 & $compilerPath -std=c11 -O2 -Wall -Wextra -Werror -DFPS_SE_MOD -shared '-Wl,--no-insert-timestamp' -I $sdk (Join-Path $root 'src\fps_mod.c') -lbcrypt -o $plugin
 if($LASTEXITCODE -ne 0) { throw 'Plugin build failed.' }
+& $compilerPath -std=c11 -O2 -Wall -Wextra -Werror -Wno-unused-function -I (Join-Path $root 'src') (Join-Path $root 'tests\test_texture_cache.c') -o (Join-Path $out 'test_texture_cache.exe')
+if($LASTEXITCODE -ne 0) { throw 'Texture-cache test build failed.' }
+& (Join-Path $out 'test_texture_cache.exe')
+if($LASTEXITCODE -ne 0) { throw 'Texture-cache regression failed.' }
 $hash=(Get-FileHash -LiteralPath $plugin -Algorithm SHA256).Hash
 ('#define FPS_MOD_EXPECTED_SHA256 "'+$hash+'"') | Set-Content -LiteralPath (Join-Path $out 'fps_mod_hash.h') -Encoding ASCII
 $resource=Join-Path $out 'loader-resource.o'

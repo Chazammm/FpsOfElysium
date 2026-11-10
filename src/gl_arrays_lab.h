@@ -25,6 +25,7 @@ static _Thread_local int arrays_layer_current,arrays_output_layered;
 static _Thread_local FpsTextureLayer arrays_layer;
 static _Thread_local FpsAtlasRect arrays_rect;
 static _Thread_local int arrays_context_checked, arrays_context_ok, arrays_has_vbo, arrays_tex_units=1;
+static _Thread_local int arrays_has_vao;
 static _Thread_local HGLRC arrays_context;
 static _Thread_local long long arrays_draw_ticks, arrays_draw_calls, arrays_replays, arrays_vertex_count;
 static void (*arrays_get_int)(unsigned,int *);
@@ -55,7 +56,7 @@ static int arrays_check_context(void) {
     HGLRC context=arrays_current_context();
     if(arrays_context_checked && context==arrays_context) return arrays_context_ok;
     arrays_context_checked=1;arrays_context=context;arrays_context_ok=0;
-    arrays_color_known=0;arrays_uv_known=0;arrays_has_vbo=0;arrays_tex_units=1;arrays_has_extended_arrays=0;
+    arrays_color_known=0;arrays_uv_known=0;arrays_has_vbo=0;arrays_tex_units=1;arrays_has_extended_arrays=0;arrays_has_vao=0;
     if(!context) return 0;
     const char *version=(const char *)arrays_get_string(0x1f02);
     const char *ext=(const char *)arrays_get_string(0x1f03);
@@ -65,6 +66,7 @@ static int arrays_check_context(void) {
     int texture=0;arrays_get_int(0x8069,&texture);arrays_texture=(unsigned)texture;
     arrays_has_extended_arrays=major>1 || (major==1 && minor>=4);
     arrays_has_vbo=major>1 || (major==1 && minor>=5) || arrays_extension(ext,"GL_ARB_vertex_buffer_object");
+    arrays_has_vao=major>=3 || arrays_extension(ext,"GL_ARB_vertex_array_object");
     if(major>1 || (major==1 && minor>=3) || arrays_extension(ext,"GL_ARB_multitexture")) {
         arrays_client_active=(void (*)(unsigned))arrays_wgl_proc("glClientActiveTexture");
         if(!arrays_client_active) arrays_client_active=(void (*)(unsigned))arrays_wgl_proc("glClientActiveTextureARB");
@@ -139,12 +141,13 @@ static void arrays_end_frame(void) { arrays_flush();arrays_end_client_session();
 static int arrays_capture_allowed(void) {
     if(arrays_allowed_cached>=0) return arrays_allowed_cached;
     if(!arrays_check_context()) return 0;
-    int binding=0,mode=0,list=0,unit=0x84c0;
+    int binding=0,vao=0,mode=0,list=0,unit=0x84c0;
     if(arrays_has_vbo) arrays_get_int(0x8894,&binding);
+    if(arrays_has_vao) arrays_get_int(0x85b5,&vao);
     arrays_get_int(0x0c40,&mode);arrays_get_int(0x0b33,&list);
     if(arrays_client_active) arrays_get_int(0x84e0,&unit);
     // Fixed-function 2D only. No VBO binding changes or VBO/FBO ownership.
-    arrays_allowed_cached=!(binding || mode!=0x1c00 || list || unit!=0x84c0 || arrays_is_enabled(0x0b50) || arrays_is_enabled(0x0b57));
+    arrays_allowed_cached=!(binding || vao || mode!=0x1c00 || list || unit!=0x84c0 || arrays_is_enabled(0x0b50) || arrays_is_enabled(0x0b57));
     return arrays_allowed_cached;
 }
 // Required once at the start of each Highest frame. The pinned game does not
@@ -258,7 +261,12 @@ ARR_WRAP2(glBlendFunc,unsigned,unsigned) ARR_WRAP2(glAlphaFunc,unsigned,float) A
 ARR_WRAP2(glFogfv,unsigned,const float *) ARR_WRAP2(glFogf,unsigned,float) ARR_WRAP2(glFogi,unsigned,int)
 ARR_WRAP2(glHint,unsigned,unsigned) ARR_WRAP2(glLightModeli,unsigned,int) ARR_WRAP2(glColorMaterial,unsigned,unsigned)
 static void (*arrays_real_glDeleteTextures)(int,const unsigned *);
-static void arrays_glDeleteTextures(int n,const unsigned *ids) { arrays_end_frame();for(int i=0;i<n;i++) {atlas_forget(ids[i]);array_texture_forget(ids[i]);}arrays_real_glDeleteTextures(n,ids); }
+static void arrays_glDeleteTextures(int n,const unsigned *ids) {
+    arrays_end_frame();
+    for(int i=0;i<n;i++) {atlas_forget(ids[i]);array_texture_remove(ids[i]);}
+    arrays_real_glDeleteTextures(n,ids);
+    for(int i=0;i<n;i++)if(ids[i]==arrays_texture){arrays_texture=0;arrays_binding_dirty=0;}
+}
 ARR_WRAP3(glScalef,float,float,float) ARR_WRAP3(glTranslatef,float,float,float)
 ARR_WRAP3(glTexEnvi,unsigned,unsigned,int)
 static void (*arrays_real_glTexParameteri)(unsigned,unsigned,int);
@@ -278,6 +286,16 @@ static void (*arrays_real_glOrtho)(double,double,double,double,double,double);
 static void arrays_glOrtho(double a,double b,double c,double d,double e,double f){arrays_end_frame();arrays_real_glOrtho(a,b,c,d,e,f);ARR_INVALIDATE();}
 static void (*arrays_real_glTexImage2D)(unsigned,int,int,int,int,int,unsigned,unsigned,const void *);
 static void arrays_glTexImage2D(unsigned a,int b,int c,int d,int e,int f,unsigned g,unsigned h,const void *i){arrays_end_frame();atlas_forget(arrays_texture);array_texture_forget(arrays_texture);arrays_real_glTexImage2D(a,b,c,d,e,f,g,h,i);ARR_INVALIDATE();}
+static int (WINAPI *arrays_real_gluBuild2DMipmaps)(unsigned,int,int,int,unsigned,unsigned,const void *);
+static int WINAPI arrays_gluBuild2DMipmaps(unsigned target,int components,int width,int height,unsigned format,unsigned type,const void *pixels) {
+    arrays_end_frame();
+    if(target==0x0de1) {
+        int binding=0;arrays_get_int(0x8069,&binding);
+        atlas_forget((unsigned)binding);array_texture_forget((unsigned)binding);
+    }
+    int result=arrays_real_gluBuild2DMipmaps(target,components,width,height,format,type,pixels);
+    ARR_INVALIDATE();return result;
+}
 static unsigned (*arrays_real_glGetError)(void);
 static unsigned arrays_glGetError(void){arrays_flush();return arrays_real_glGetError();}
 #undef ARR_WRAP0
@@ -332,8 +350,13 @@ static int install_gl_arrays(void) {
         void *native=(void *)GetProcAddress(gl,hooks[i].name);if(!native)return 0;
         if(hooks[i].save) memcpy(hooks[i].save,&native,sizeof(native));
     }
+    // Preserve the existing GLU loader/forwarder chain. System GLU performs
+    // uploads internally, so the executable's glTexImage2D hook cannot see it.
+    memcpy(&arrays_real_gluBuild2DMipmaps,detail_base+0x33a000,sizeof(arrays_real_gluBuild2DMipmaps));
+    if(!arrays_real_gluBuild2DMipmaps)return 0;
     for(size_t i=0;i<sizeof(hooks)/sizeof(hooks[0]);i++) {
         void *ignored=NULL;if(!replace_gl_import(hooks[i].rva,hooks[i].hook,&ignored))return 0;
     }
-    return 1;
+    void *ignored=NULL;
+    return replace_gl_import(0x33a000,(void *)arrays_gluBuild2DMipmaps,&ignored);
 }
