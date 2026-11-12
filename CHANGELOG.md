@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.1.10-local — experimental source snapshot, 2026-11-12
+
+- Extend map-decoration batching to Low, Medium and High by wrapping their separate native branch and decoration call. Retain the existing Highest/Ultra path and use the same batching implementation for all five levels.
+- Preserve each level's original quality value, object generation, draw order, source textures, mipmaps and filtering. The change does not substitute the Highest renderer for Low or alter the native sorting algorithms.
+- Guard both added callsites in the existing all-before-write preflight and patch transaction: eight pinned game calls in total. Add original-branch forwarding tests and one-time diagnostics naming each quality and branch reached.
+- Verify original/candidate framebuffer and final-state comparisons at every quality, original/original Low control, actual GPU cache/sampler regressions and repeated quality switching in one process. Differences stay within the existing isolated 1/255 rounding class; Low's recorded comparison was bit-exact.
+- Add actual CoE5SE startup coverage across all five levels with precise pacing off/on and GPU wait off/on. Verify retained quality, explicit positive FPS limit, active pacing callback and timing-import ownership. No quality-dependent limiter behavior is added.
+- Measure the new Low/Medium/High batching path against the previous unbatched path in the isolated native harness. Record section timings separately from whole-loop observations; no new foreground PresentMon result.
+- Use consistent "Frames per second" option names without the "(approx.)" suffix in both timing modes. Keep the native timing explanation in tooltips and documentation; limiter behavior is unchanged by this naming update.
+
+## 0.1.9-local — local test stage, included in the 0.1.10 snapshot
+
+- Add the opt-in Graphics 2 checkbox "Precise frame rate limit", disabled by default, with immediate switching and INI persistence. Use the selected frame-rate target; keep native whole-millisecond behavior when disabled. Show the added numeric targets without "approx." while the precise mode is active.
+- Pace the two pinned frame-loop paths with QPC and Windows high-resolution one-shot timers. Suppress only their native limiter sleeps after this pacer has taken responsibility; forward all other sleeps and return the original real GetTickCount values. No changes to animation time, rendering, VSync, hardware clocks, voltage or power limits.
+- Cap background rendering at 30 FPS. Reset deadlines on focus/target/path changes and long pauses, skip missed deadlines and use bounded timer waits without spinning. Restore native waiting on timer failure.
+- Before enabling, verify both timing imports and four indirect-call sites. Refuse conflicting timing hooks without overwriting them. Default-off startup leaves those two imports untouched.
+- Add timing-guard, passthrough, target/parser and live-toggle/persistence regressions. Actual CoE5SE startup tests verify off/on import ownership, background pacing, preserved quality and explicit --maxfps priority.
+- Investigate native coarse-clock waits and build an isolated laboratory comparison. The large scene removes about 1.5–1.7 ms of native waiting but still cannot reach 240 FPS; CPU time increases. A light scene reaches a mean interval around 4.167 ms with the refined pacer. These are instrumented loop measurements, not a new foreground PresentMon comparison. GPU watts and temperatures remain unmeasured.
+
 ## 0.1.8-local — experimental source snapshot, 2026-11-12
 
 - Batch consecutive quads across up to eight texture-array pages without changing their order. Carry the page index separately from the original UV coordinates and layer index; preserve original mip chains, texture filtering and vertex colors.

@@ -4,10 +4,14 @@ Log location: `coe5mod.log` next to the executable that was launched. For a norm
 
 | Message | Meaning |
 | --- | --- |
-| `startup version=0.1.8-local` | Identifies this local build before its checks run. |
-| `hook_check status=passed imports=48 callsites=6` | The import targets and pinned game calls matched before graphics imports were changed. |
+| `startup version=0.1.10-local` | Identifies this local build before its checks run. |
+| `hook_check status=passed imports=48 callsites=8` | The import targets and pinned game calls matched before graphics imports were changed, including both map-quality paths. |
+| `map_renderer quality=... path=... batching_requested=1` | The selected quality reached its optimized map scope. Values 9/10/11 are Low/Medium/High and use `low_medium_high`; 12/13 are Highest/Ultra and use `highest_ultra`. Emitted once for each quality used. Unsupported individual textures/states can still use original drawing. |
 | `frame_limit interval_ms=... unlimited=... source=...` | Native FPS interval. `preference_pending` is applied once after configuration loading; `preference` confirms that restore. `launch_option` preserves an explicit `--maxfps` argument. `graphics_menu saved=1` confirms a selection was persisted. In 0.1.7, `legacy_unlimited_migrated` reports conversion of an old zero-delay setting to the bounded 3-ms target. |
 | `gpu_wait glfinish=0 source=...` | Extra GPU synchronization is off. Source is the game state, saved mod preference, explicit launch option or a live graphics-menu change. `saved=1` means that menu change was written successfully. |
+| `precise_frame_limit enabled=... source=... target=...` | The optional high-resolution limiter is on/off. Its default is off. The target is the chosen frame-rate value or explicit startup target. `busy_wait=0 game_clock_unchanged=1` describes its blocking timer and real game-clock forwarding. |
+| `precise_frame_limit active_target=30 foreground=0` | Background throttling is active. Returning the game to the foreground restores its selected target. This line appears on target changes, not every frame. |
+| `precise_frame_limit enabled=0 reason=... native_wait_restored=1` | Timing-hook conflict, missing timer capability or a wait failure disabled the option. Rendering remains available; the pacer does not overwrite a foreign timing import. |
 | `graphics_menu ready page=Graphics_2` | The native Graphics 2 checkbox is available. It controls the existing glFinish flag, not VSync or the FPS limit. |
 | `graphics vendor=... renderer=... opengl_driver=...` | Actual current OpenGL device/driver, logged once at the main menu or first map. The driver text is the OpenGL implementation string, not a separate Windows package-version lookup. |
 | `initialized` | Plugin initialization completed. Graphics resources may still await the first map draw. |

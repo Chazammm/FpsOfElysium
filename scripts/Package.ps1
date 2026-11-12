@@ -1,4 +1,4 @@
-param([ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version='0.1.8')
+param([ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version='0.1.10')
 $ErrorActionPreference='Stop'
 $root=Split-Path -Parent $PSScriptRoot
 $out=Join-Path $root 'build'

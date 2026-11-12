@@ -4,14 +4,20 @@
 static int problems,lines;
 static char last_line[2400];
 static int menu_calls;
+static int low_forward_calls,highest_forward_calls;
+static void fake_low_draw(void){low_forward_calls++;}
+static void fake_highest_draw(void){highest_forward_calls++;}
 static int fake_menu_wait(int a,int b){menu_calls++;return a*3+b;}
 static int section_calls,checkbox_calls,tip_calls,wait_toggle,frame_wait_id,choice_calls,choice_selected,choice_bad,original_choice_calls;
+static int precise_checkbox_calls,precise_toggle,forwarded_sleep;
+static DWORD WINAPI fake_clock(void){return 123456789u;}
+static void WINAPI fake_sleep(DWORD milliseconds){forwarded_sleep=(int)milliseconds;}
 static void fake_section_end(void){section_calls++;}
 static int map_forward_calls;
 static void fake_map_draw(void){map_forward_calls++;}
-static void fake_checkbox(int id,int *value,const char *label){if(id==1 && value==fps_gpu_wait && !strcmp(label,"Wait for GPU each frame"))checkbox_calls++;}
+static void fake_checkbox(int id,int *value,const char *label){if(id==1 && value==fps_gpu_wait && !strcmp(label,"Wait for GPU each frame"))checkbox_calls++;if(id==2 && value==&fps_precise_setting && !strcmp(label,"Precise frame rate limit"))precise_checkbox_calls++;}
 static void fake_tooltip(const char *text){if(strstr(text,"not VSync"))tip_calls++;}
-static int fake_preferences_wait(int a,int b){if(wait_toggle)*fps_gpu_wait=!*fps_gpu_wait;return frame_wait_id?frame_wait_id:a*5+b;}
+static int fake_preferences_wait(int a,int b){if(wait_toggle)*fps_gpu_wait=!*fps_gpu_wait;if(precise_toggle)fps_precise_setting=!fps_precise_setting;return frame_wait_id?frame_wait_id:a*5+b;}
 static int fake_original_choice(int id,int selected,const char *label,...){if(id==408 && selected==0 && !strcmp(label,"120 Frames per second"))original_choice_calls++;return 731;}
 static void fake_choice(int id,int selected,const char *label){
     size_t i=(size_t)choice_calls++;
@@ -95,6 +101,34 @@ int main(void) {
     CHECK(strstr(last_line,"saved=1"));
     CHECK(fps_preferences_wait(2,3)==13 && gpu_wait==0 && lines==2);
     CHECK(GetPrivateProfileStringW(L"Graphics",L"WaitForGpu",L"",readback,8,fps_graphics_ini)==1 && !wcscmp(readback,L"0"));
+    CHECK(precise_checkbox_calls==1 && !fps_pacing_enabled && !fps_pacing_installed);
+    const uintptr_t timing_sites[]={0x23f23f,0x2406ec,0x23f27a,0x240727};
+    void *clock_export=(void *)GetProcAddress(GetModuleHandleW(L"kernel32.dll"),"GetTickCount");
+    void *sleep_export=(void *)GetProcAddress(GetModuleHandleW(L"kernel32.dll"),"Sleep");
+    memcpy(base+0x33a268,&clock_export,sizeof(clock_export));memcpy(base+0x33a278,&sleep_export,sizeof(sleep_export));
+    for(size_t i=0;i<4;i++){unsigned char *site=base+timing_sites[i];site[0]=0xff;site[1]=0x15;int32_t relative=(int32_t)((i<2?0x33a268:0x33a278)-timing_sites[i]-6);memcpy(site+2,&relative,4);}
+    CHECK(fps_pacing_check(base,clock_export,sleep_export));
+    for(size_t i=0;i<4;i++){
+        base[timing_sites[i]]^=1;memcpy(snapshot,base,bytes);CHECK(!fps_pacing_check(base,clock_export,sleep_export));CHECK(!memcmp(base,snapshot,bytes));base[timing_sites[i]]^=1;
+        base[timing_sites[i]+2]^=1;memcpy(snapshot,base,bytes);CHECK(!fps_pacing_check(base,clock_export,sleep_export));CHECK(!memcmp(base,snapshot,bytes));base[timing_sites[i]+2]^=1;
+    }
+    void *foreign_clock=(void *)(uintptr_t)0x12345678;memcpy(base+0x33a268,&foreign_clock,sizeof(foreign_clock));memcpy(snapshot,base,bytes);
+    CHECK(!fps_pacing_enable(1) && !fps_pacing_enabled && !fps_precise_setting && !memcmp(base,snapshot,bytes));
+    memcpy(base+0x33a268,&clock_export,sizeof(clock_export));memcpy(base+0x33a278,&foreign_clock,sizeof(foreign_clock));
+    CHECK(!fps_pacing_enable(1) && !fps_pacing_enabled);memcpy(base+0x33a278,&sleep_export,sizeof(sleep_export));
+    CHECK(fps_pacing_interval_target(4)==240 && fps_pacing_interval_target(3)==360 && fps_pacing_interval_target(8)==120 && fps_pacing_interval_target(16)==60);
+    CHECK(fps_pacing_interval_target(0)>0 && fps_pacing_interval_target(-1)>0 && fps_pacing_interval_target(200)==5);
+    wchar_t *targets[]={L"CoE5.exe",L"--maxfps=333",L"--maxfps=240",L"--maxfps=99999999999999999999999"};
+    CHECK(fps_pacing_argument(2,targets)==333 && fps_pacing_argument(3,targets)==240 && fps_pacing_argument(4,targets)==1000);
+    CHECK(fps_pacing_argument(1,targets)==0);
+    wait_toggle=0;precise_toggle=1;frame_wait_id=0;
+    CHECK(fps_preferences_wait(2,3)==13 && fps_pacing_enabled && fps_precise_setting && fps_pacing_installed);
+    CHECK(GetPrivateProfileStringW(L"Graphics",L"PreciseFrameLimit",L"",readback,8,fps_graphics_ini)==1 && !wcscmp(readback,L"1"));
+    CHECK(fps_preferences_wait(2,3)==13 && !fps_pacing_enabled && !fps_precise_setting);
+    CHECK(GetPrivateProfileStringW(L"Graphics",L"PreciseFrameLimit",L"",readback,8,fps_graphics_ini)==1 && !wcscmp(readback,L"0"));
+    precise_toggle=0;
+    fps_pacing_original_clock=fake_clock;fps_pacing_original_sleep=fake_sleep;
+    CHECK(fps_pacing_clock()==123456789u);fps_pacing_sleep(17);CHECK(forwarded_sleep==17);
     wait_toggle=0;
     for(size_t i=0;i<sizeof(fps_frame_options)/sizeof(fps_frame_options[0]);i++) {
         int interval=fps_frame_options[i].interval;frame_wait_id=400+interval;
@@ -120,7 +154,10 @@ int main(void) {
     ta_note_cap(0x0de1,0);CHECK(!ta_switches_allowed());ta_note_cap(0x0de1,1);CHECK(ta_switches_allowed());
     ta_track_state=1;ta_state_checked=1;arrays_matrix_mode=0x1702;arrays_matrix_changed();CHECK(!ta_state_checked);
     ta_state_checked=1;arrays_matrix_mode=0x1700;arrays_matrix_changed();CHECK(ta_state_checked);
+    int disabled_setting=0;mod_setting_enabled=&disabled_setting;mod_operational=0;mod_reported_graphics=1;
+    mod_original_high=fake_low_draw;mod_original_highest=fake_highest_draw;
+    mod_high();mod_highest();CHECK(low_forward_calls==1 && highest_forward_calls==1);
     HeapFree(GetProcessHeap(),0,snapshot);HeapFree(GetProcessHeap(),0,base);FreeLibrary(glu);FreeLibrary(gl);
-    printf("PASS: %u GL/GLU import conflicts and 6 changed callsites rejected without writes; bounded frame choices, uncapped-setting migration, persistence, legacy selection and argument validation.\n",(unsigned)count+1);
+    printf("PASS: %u GL/GLU import conflicts and 8 changed callsites rejected without writes; both quality branches forward correctly; bounded frame choices, migration and persistence; precise pacing guards, passthrough, targets and live toggles.\n",(unsigned)count+1);
     return 0;
 }

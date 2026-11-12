@@ -1,6 +1,6 @@
 # AMD and NVIDIA compatibility audit
 
-Scope: local 0.1.8, Windows x64, exact CoE5 5.43 executable, CoE5SE 3.2.2 API 11. Updated 2026-11-12. The primary references below were used in the original 0.1.3 audit; the 0.1.8 additions were checked in source and on the local AMD GPU.
+Scope: local 0.1.10, Windows x64, exact CoE5 5.43 executable, CoE5SE 3.2.2 API 11. Updated 2026-11-12. The primary references below were used in the original 0.1.3 audit; subsequent additions were checked in source and on the local AMD GPU.
 
 **The current implementation does not require separate AMD and NVIDIA builds. Compatibility on NVIDIA is expected from the API requirements and source review, not yet confirmed by a hardware test.**
 
@@ -20,6 +20,10 @@ Scope: local 0.1.8, Windows x64, exact CoE5 5.43 executable, CoE5SE 3.2.2 API 11
 - Each multi-page session saves and restores the reserved array bindings and sampler objects. Foreign nonzero samplers on units 1–8 are temporarily unbound so their filters cannot replace the page's original filtering. Unit 0's existing sampler guard still applies.
 
 There are no AMD/ATI-only or NVIDIA-only entry points and no GPU-vendor-string branch in the production path. The game offsets refer to the pinned game executable, not to an AMD or NVIDIA driver binary. Unsupported features/states use original drawing; unsupported game executables receive no code patches.
+
+The optional 0.1.9 frame limiter uses Windows QPC and a high-resolution waitable timer, independently of the GPU vendor. The high-resolution timer flag requires Windows 10 version 1803 or later; failure leaves native waiting active. It changes no driver power policy or hardware tuning. See [frame-pacing evidence and power limits](FRAME_PACING.md). This adds no NVIDIA hardware validation.
+
+Version 0.1.10 extends the existing batcher to both native map-quality branches. The local AMD validation covers all five quality levels, repeated quality switching and the graphics controls at every level. It introduces no new OpenGL feature or vendor-specific route. See [quality coverage](QUALITY_LEVELS.md); NVIDIA execution remains unverified.
 
 ## What the review does not establish
 

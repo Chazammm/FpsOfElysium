@@ -165,7 +165,7 @@ static int arrays_capture_allowed(void) {
     arrays_allowed_cached=!(binding || vao || mode!=0x1c00 || list || unit!=0x84c0 || fixed_state);
     return arrays_allowed_cached;
 }
-// Required once at the start of each Highest frame. The pinned game does not
+// Required once at the start of either map-decoration pass. The pinned game does not
 // import BindBuffer/RenderMode/NewList/ActiveTexture. If another mod uses those
 // through an extension pointer it must call arrays_flush before mutating them
 // and arrays_invalidate afterwards; unobserved third-party GL mutation is unsupported.

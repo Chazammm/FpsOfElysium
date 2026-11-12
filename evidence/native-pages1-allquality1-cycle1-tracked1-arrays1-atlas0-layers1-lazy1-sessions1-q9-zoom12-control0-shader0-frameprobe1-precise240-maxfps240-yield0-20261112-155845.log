@@ -1,0 +1,162 @@
+fps_frame_probe ready mode=precise high_resolution_timer=1 busy_wait=0 game_clock_unchanged=1
+native_enabled game=5.43 coe5se=absent quality_preserved=1
+fps_texture id=52 width=64 height=64 min=2703 mag=2601 wrap=812f,812f
+fps_texture id=48 width=64 height=64 min=2703 mag=2601 wrap=812f,812f
+fps_texture id=55 width=64 height=64 min=2703 mag=2601 wrap=812f,812f
+fps_texture id=56 width=64 height=64 min=2703 mag=2601 wrap=812f,812f
+fps_texture id=50 width=64 height=64 min=2703 mag=2601 wrap=812f,812f
+fps_texture id=61 width=64 height=64 min=2703 mag=2601 wrap=812f,812f
+fps_texture id=62 width=64 height=64 min=2703 mag=2601 wrap=812f,812f
+fps_texture id=51 width=64 height=64 min=2703 mag=2601 wrap=812f,812f
+fps_texture id=41 width=128 height=128 min=2703 mag=2601 wrap=812f,812f
+fps_texture id=42 width=128 height=128 min=2703 mag=2601 wrap=812f,812f
+fps_texture id=63 width=64 height=64 min=2703 mag=2601 wrap=812f,812f
+fps_texture id=59 width=64 height=64 min=2703 mag=2601 wrap=812f,812f
+fps_gpu_regression cache_refresh_and_layer_reuse=1 deleted_name_removed=1 nonzero_vao_refused=1
+fps_gpu_multipage distinct_pages=1 page_bindings=1 sampler_override=1 foreign_state_restored=1 tracked_switches=1 gl_error=0
+fps_pixel_oracle width=1280 height=720 background_exact=1 different_channels=0 max_delta=0 baseline_gl_error=0 candidate_gl_error=0 batch=0 color_cache=0 arrays=1 state_equal=1 client_session_closed=1 original_control=0 quality=9
+fps_quality_cycle previous=9 next=10 frame=300
+fps_lab branch=high thread=26716 frames=300 mean_ms=2.2724 max_ms=84.7078
+fps_detail mode=0 frames=300 wait_ms=0.0000 wait_calls=0 buckets_ms=0.0240 bucket_sort_cpu_ms=0.0000 sprite_sort_ms=0.0000 candidate_ms=0.0000 sort_calls=0 mismatches=0 sprites_min=2147483647 sprites_max=0 zoom=12.0000 camera=40.0000,40.0000 plane=0 quality=10
+fps_detail_arrays enabled=1 draw_ms=0.2968 draws=22761 vertices=14531232 replays=0 lazy_binds=1 source_binds=1784319 client_sessions=1 client_setups=22451
+fps_texture_array enabled=1 status=ready GLSL130 compatibility original UV and mip layers uploads=120 rejected=4 bytes=33553408 hits=3632812 multipage=1 tracked=1 state_checks=303 guard_checks=301 sessions=22453
+fps_detail_gl batch=0 color_cache=0 end_ms=0.0000 bind_ms=0.0000 color_ms=0.0000 skipped=0 oracle=1
+fps_detail_draw frames=300 decor_ms=1.6914 decor_calls=3667151 count=20544
+fps_frame_probe mode=precise target=240 native_interval_ms=4 samples=300 mean_interval_ms=10.083115 p95_interval_ms=6.669500 sleep_calls=0 sleep_requested_ms=0.000 sleep_actual_ms_per_frame=0.000000 timer_waits=0 timer_wait_ms_per_frame=0.000000 suppressed_native_sleeps=176 process_cpu_ms_per_frame=-1.000000 main_thread_cpu_ms_per_frame=-1.000000 yield=0 route=0x2406f2
+fps_pixel_oracle width=1280 height=720 background_exact=1 different_channels=1 max_delta=1 baseline_gl_error=0 candidate_gl_error=0 batch=0 color_cache=0 arrays=1 state_equal=1 client_session_closed=1 original_control=0 quality=10
+fps_quality_cycle previous=10 next=11 frame=600
+fps_lab branch=high thread=26716 frames=300 mean_ms=2.7861 max_ms=30.8185
+fps_detail mode=0 frames=300 wait_ms=0.0000 wait_calls=0 buckets_ms=0.0364 bucket_sort_cpu_ms=0.0013 sprite_sort_ms=0.0000 candidate_ms=0.0000 sort_calls=0 mismatches=0 sprites_min=2147483647 sprites_max=0 zoom=12.0000 camera=40.0000,40.0000 plane=0 quality=11
+fps_detail_arrays enabled=1 draw_ms=0.4347 draws=28558 vertices=24546728 replays=0 lazy_binds=1 source_binds=1796225 client_sessions=1 client_setups=28257
+fps_texture_array enabled=1 status=ready GLSL130 compatibility original UV and mip layers uploads=120 rejected=4 bytes=33553408 hits=9769494 multipage=1 tracked=1 state_checks=300 guard_checks=300 sessions=28257
+fps_detail_gl batch=0 color_cache=0 end_ms=0.0000 bind_ms=0.0000 color_ms=0.0000 skipped=0 oracle=1
+fps_detail_draw frames=300 decor_ms=1.9889 decor_calls=6186689 count=23188
+fps_frame_probe mode=precise target=240 native_interval_ms=4 samples=300 mean_interval_ms=6.765864 p95_interval_ms=6.844600 sleep_calls=0 sleep_requested_ms=0.000 sleep_actual_ms_per_frame=0.000000 timer_waits=0 timer_wait_ms_per_frame=0.000000 suppressed_native_sleeps=172 process_cpu_ms_per_frame=5.781250 main_thread_cpu_ms_per_frame=5.416667 yield=0 route=0x2406f2
+fps_pixel_oracle width=1280 height=720 background_exact=1 different_channels=0 max_delta=0 baseline_gl_error=0 candidate_gl_error=0 batch=0 color_cache=0 arrays=1 state_equal=1 client_session_closed=1 original_control=0 quality=11
+fps_quality_cycle previous=11 next=12 frame=900
+fps_frame_probe mode=precise target=240 native_interval_ms=4 samples=300 mean_interval_ms=7.755446 p95_interval_ms=7.845000 sleep_calls=0 sleep_requested_ms=0.000 sleep_actual_ms_per_frame=0.000000 timer_waits=0 timer_wait_ms_per_frame=0.000000 suppressed_native_sleeps=152 process_cpu_ms_per_frame=6.979167 main_thread_cpu_ms_per_frame=6.770833 yield=0 route=0x2406f2
+fps_pixel_oracle width=1280 height=720 background_exact=1 different_channels=0 max_delta=0 baseline_gl_error=0 candidate_gl_error=0 batch=0 color_cache=0 arrays=1 state_equal=1 client_session_closed=1 original_control=0 quality=12
+fps_lab branch=highest thread=26716 frames=300 mean_ms=5.7972 max_ms=51.2538
+fps_detail mode=0 frames=300 wait_ms=0.1087 wait_calls=1423082 buckets_ms=0.1060 bucket_sort_cpu_ms=1.4103 sprite_sort_ms=0.0051 candidate_ms=0.0000 sort_calls=301 mismatches=0 sprites_min=276 sprites_max=324 zoom=12.0000 camera=40.0000,40.0000 plane=0 quality=12
+fps_detail_arrays enabled=1 draw_ms=1.7750 draws=171133 vertices=72566684 replays=0 lazy_binds=1 source_binds=3796793 client_sessions=1 client_setups=169635
+fps_texture_array enabled=1 status=ready GLSL130 compatibility original UV and mip layers uploads=121 rejected=4 bytes=33553408 hits=27911165 multipage=1 tracked=1 state_checks=599 guard_checks=599 sessions=169635
+fps_detail_gl batch=0 color_cache=0 end_ms=0.0000 bind_ms=0.0000 color_ms=0.0000 skipped=0 oracle=1
+fps_detail_draw frames=300 decor_ms=6.0590 decor_calls=18303196 count=37695
+fps_quality_cycle previous=12 next=13 frame=1200
+fps_frame_probe mode=precise target=240 native_interval_ms=4 samples=300 mean_interval_ms=10.046774 p95_interval_ms=10.228800 sleep_calls=0 sleep_requested_ms=0.000 sleep_actual_ms_per_frame=0.000000 timer_waits=0 timer_wait_ms_per_frame=0.000000 suppressed_native_sleeps=110 process_cpu_ms_per_frame=8.177083 main_thread_cpu_ms_per_frame=8.020833 yield=0 route=0x2406f2
+fps_pixel_oracle width=1280 height=720 background_exact=1 different_channels=0 max_delta=0 baseline_gl_error=0 candidate_gl_error=0 batch=0 color_cache=0 arrays=1 state_equal=1 client_session_closed=1 original_control=0 quality=13
+fps_lab branch=highest thread=26716 frames=300 mean_ms=5.7482 max_ms=50.2858
+fps_detail mode=0 frames=300 wait_ms=0.1051 wait_calls=1400276 buckets_ms=0.0648 bucket_sort_cpu_ms=1.0321 sprite_sort_ms=0.0047 candidate_ms=0.0000 sort_calls=301 mismatches=0 sprites_min=280 sprites_max=322 zoom=12.0000 camera=40.0000,40.0000 plane=0 quality=13
+fps_detail_arrays enabled=1 draw_ms=1.1901 draws=124676 vertices=45024000 replays=0 lazy_binds=1 source_binds=1984969 client_sessions=1 client_setups=123776
+fps_texture_array enabled=1 status=ready GLSL130 compatibility original UV and mip layers uploads=121 rejected=4 bytes=33553408 hits=39167165 multipage=1 tracked=1 state_checks=300 guard_checks=300 sessions=123776
+fps_detail_gl batch=0 color_cache=0 end_ms=0.0000 bind_ms=0.0000 color_ms=0.0000 skipped=0 oracle=1
+fps_detail_draw frames=300 decor_ms=3.6658 decor_calls=11346496 count=37695
+fps_quality_cycle previous=13 next=9 frame=1500
+fps_lab branch=high thread=26716 frames=300 mean_ms=3.6602 max_ms=33.1901
+fps_detail mode=0 frames=300 wait_ms=0.0000 wait_calls=0 buckets_ms=0.0001 bucket_sort_cpu_ms=0.0000 sprite_sort_ms=0.0000 candidate_ms=0.0000 sort_calls=0 mismatches=0 sprites_min=2147483647 sprites_max=0 zoom=12.0000 camera=40.0000,40.0000 plane=0 quality=9
+fps_detail_arrays enabled=1 draw_ms=0.0010 draws=76 vertices=48452 replays=0 lazy_binds=1 source_binds=5919 client_sessions=1 client_setups=75
+fps_texture_array enabled=1 status=ready GLSL130 compatibility original UV and mip layers uploads=121 rejected=4 bytes=33553408 hits=39179278 multipage=1 tracked=1 state_checks=1 guard_checks=1 sessions=75
+fps_detail_gl batch=0 color_cache=0 end_ms=0.0000 bind_ms=0.0000 color_ms=0.0000 skipped=0 oracle=1
+fps_detail_draw frames=300 decor_ms=0.0040 decor_calls=12187 count=12186
+fps_frame_probe mode=precise target=240 native_interval_ms=4 samples=300 mean_interval_ms=9.955642 p95_interval_ms=10.016500 sleep_calls=0 sleep_requested_ms=0.000 sleep_actual_ms_per_frame=0.000000 timer_waits=0 timer_wait_ms_per_frame=0.000000 suppressed_native_sleeps=112 process_cpu_ms_per_frame=7.656250 main_thread_cpu_ms_per_frame=7.447917 yield=0 route=0x2406f2
+fps_pixel_oracle width=1280 height=720 background_exact=1 different_channels=0 max_delta=0 baseline_gl_error=0 candidate_gl_error=0 batch=0 color_cache=0 arrays=1 state_equal=1 client_session_closed=1 original_control=0 quality=9
+fps_quality_cycle previous=9 next=13 frame=1800
+fps_frame_probe mode=precise target=240 native_interval_ms=4 samples=300 mean_interval_ms=6.431682 p95_interval_ms=6.628700 sleep_calls=0 sleep_requested_ms=0.000 sleep_actual_ms_per_frame=0.000000 timer_waits=0 timer_wait_ms_per_frame=0.000000 suppressed_native_sleeps=178 process_cpu_ms_per_frame=10.677083 main_thread_cpu_ms_per_frame=5.364583 yield=0 route=0x2406f2
+fps_pixel_oracle width=1280 height=720 background_exact=1 different_channels=1 max_delta=1 baseline_gl_error=0 candidate_gl_error=0 batch=0 color_cache=0 arrays=1 state_equal=1 client_session_closed=1 original_control=0 quality=13
+fps_lab branch=highest thread=26716 frames=300 mean_ms=5.6039 max_ms=50.3612
+fps_detail mode=0 frames=300 wait_ms=0.1063 wait_calls=1423760 buckets_ms=0.0876 bucket_sort_cpu_ms=1.0388 sprite_sort_ms=0.0029 candidate_ms=0.0000 sort_calls=301 mismatches=0 sprites_min=123 sprites_max=322 zoom=12.0000 camera=40.0000,40.0000 plane=0 quality=13
+fps_detail_arrays enabled=1 draw_ms=1.4074 draws=131895 vertices=59511148 replays=0 lazy_binds=1 source_binds=3732280 client_sessions=1 client_setups=130696
+fps_texture_array enabled=1 status=ready GLSL130 compatibility original UV and mip layers uploads=121 rejected=4 bytes=33553408 hits=54057065 multipage=1 tracked=1 state_checks=599 guard_checks=599 sessions=130696
+fps_detail_gl batch=0 color_cache=0 end_ms=0.0000 bind_ms=0.0000 color_ms=0.0000 skipped=0 oracle=1
+fps_detail_draw frames=300 decor_ms=4.8975 decor_calls=15002596 count=37695
+fps_quality_cycle previous=13 next=11 frame=2100
+fps_lab branch=high thread=26716 frames=300 mean_ms=1.7662 max_ms=30.9522
+fps_detail mode=0 frames=300 wait_ms=0.0000 wait_calls=0 buckets_ms=0.0001 bucket_sort_cpu_ms=0.0013 sprite_sort_ms=0.0000 candidate_ms=0.0000 sort_calls=0 mismatches=0 sprites_min=2147483647 sprites_max=0 zoom=12.0000 camera=40.0000,40.0000 plane=0 quality=11
+fps_detail_arrays enabled=1 draw_ms=0.0019 draws=153 vertices=92116 replays=0 lazy_binds=1 source_binds=5997 client_sessions=1 client_setups=151
+fps_texture_array enabled=1 status=ready GLSL130 compatibility original UV and mip layers uploads=121 rejected=4 bytes=33553408 hits=54080094 multipage=1 tracked=1 state_checks=1 guard_checks=1 sessions=151
+fps_detail_gl batch=0 color_cache=0 end_ms=0.0000 bind_ms=0.0000 color_ms=0.0000 skipped=0 oracle=1
+fps_detail_draw frames=300 decor_ms=0.0078 decor_calls=23189 count=23188
+fps_frame_probe mode=precise target=240 native_interval_ms=4 samples=300 mean_interval_ms=9.778261 p95_interval_ms=9.922200 sleep_calls=0 sleep_requested_ms=0.000 sleep_actual_ms_per_frame=0.000000 timer_waits=0 timer_wait_ms_per_frame=0.000000 suppressed_native_sleeps=116 process_cpu_ms_per_frame=8.177083 main_thread_cpu_ms_per_frame=7.812500 yield=0 route=0x2406f2
+fps_pixel_oracle width=1280 height=720 background_exact=1 different_channels=1 max_delta=1 baseline_gl_error=0 candidate_gl_error=0 batch=0 color_cache=0 arrays=1 state_equal=1 client_session_closed=1 original_control=0 quality=11
+fps_quality_cycle previous=11 next=10 frame=2400
+fps_lab branch=high thread=26716 frames=300 mean_ms=3.6611 max_ms=33.2076
+fps_detail mode=0 frames=300 wait_ms=0.0000 wait_calls=0 buckets_ms=0.0407 bucket_sort_cpu_ms=0.3803 sprite_sort_ms=0.0000 candidate_ms=0.0000 sort_calls=0 mismatches=0 sprites_min=2147483647 sprites_max=0 zoom=12.0000 camera=40.0000,40.0000 plane=0 quality=10
+fps_detail_arrays enabled=1 draw_ms=0.5744 draws=45842 vertices=27624472 replays=0 lazy_binds=1 source_binds=1815551 client_sessions=1 client_setups=45243
+fps_texture_array enabled=1 status=ready GLSL130 compatibility original UV and mip layers uploads=121 rejected=4 bytes=33553408 hits=60986212 multipage=1 tracked=1 state_checks=300 guard_checks=300 sessions=45243
+fps_detail_gl batch=0 color_cache=0 end_ms=0.0000 bind_ms=0.0000 color_ms=0.0000 skipped=0 oracle=1
+fps_detail_draw frames=300 decor_ms=2.3708 decor_calls=6977245 count=20544
+fps_frame_probe mode=precise target=240 native_interval_ms=4 samples=300 mean_interval_ms=7.746606 p95_interval_ms=7.906400 sleep_calls=0 sleep_requested_ms=0.000 sleep_actual_ms_per_frame=0.000000 timer_waits=0 timer_wait_ms_per_frame=0.000000 suppressed_native_sleeps=152 process_cpu_ms_per_frame=6.302083 main_thread_cpu_ms_per_frame=6.145833 yield=0 route=0x2406f2
+fps_pixel_oracle width=1280 height=720 background_exact=1 different_channels=0 max_delta=0 baseline_gl_error=0 candidate_gl_error=0 batch=0 color_cache=0 arrays=1 state_equal=1 client_session_closed=1 original_control=0 quality=10
+fps_quality_cycle previous=10 next=9 frame=2700
+fps_lab branch=high thread=26716 frames=300 mean_ms=2.8002 max_ms=29.9052
+fps_detail mode=0 frames=300 wait_ms=0.0000 wait_calls=0 buckets_ms=0.0366 bucket_sort_cpu_ms=0.0000 sprite_sort_ms=0.0000 candidate_ms=0.0000 sort_calls=0 mismatches=0 sprites_min=2147483647 sprites_max=0 zoom=12.0000 camera=40.0000,40.0000 plane=0 quality=9
+fps_detail_arrays enabled=1 draw_ms=0.4370 draws=28481 vertices=24503064 replays=0 lazy_binds=1 source_binds=1796163 client_sessions=1 client_setups=28181
+fps_texture_array enabled=1 status=ready GLSL130 compatibility original UV and mip layers uploads=121 rejected=4 bytes=33553408 hits=67111978 multipage=1 tracked=1 state_checks=300 guard_checks=300 sessions=28181
+fps_detail_gl batch=0 color_cache=0 end_ms=0.0000 bind_ms=0.0000 color_ms=0.0000 skipped=0 oracle=1
+fps_detail_draw frames=300 decor_ms=2.0044 decor_calls=6175687 count=12186
+fps_frame_probe mode=precise target=240 native_interval_ms=4 samples=300 mean_interval_ms=6.891712 p95_interval_ms=6.916900 sleep_calls=0 sleep_requested_ms=0.000 sleep_actual_ms_per_frame=0.000000 timer_waits=0 timer_wait_ms_per_frame=0.000000 suppressed_native_sleeps=168 process_cpu_ms_per_frame=6.458333 main_thread_cpu_ms_per_frame=5.937500 yield=0 route=0x2406f2
+fps_pixel_oracle width=1280 height=720 background_exact=1 different_channels=0 max_delta=0 baseline_gl_error=0 candidate_gl_error=0 batch=0 color_cache=0 arrays=1 state_equal=1 client_session_closed=1 original_control=0 quality=9
+fps_lab branch=high thread=26716 frames=300 mean_ms=1.7957 max_ms=34.5316
+fps_detail mode=0 frames=300 wait_ms=0.0000 wait_calls=0 buckets_ms=0.0237 bucket_sort_cpu_ms=0.0000 sprite_sort_ms=0.0000 candidate_ms=0.0000 sort_calls=0 mismatches=0 sprites_min=2147483647 sprites_max=0 zoom=12.0000 camera=40.0000,40.0000 plane=0 quality=9
+fps_detail_arrays enabled=1 draw_ms=0.3004 draws=22800 vertices=14535600 replays=0 lazy_binds=1 source_binds=1784167 client_sessions=1 client_setups=22500
+fps_texture_array enabled=1 status=ready GLSL130 compatibility original UV and mip layers uploads=121 rejected=4 bytes=33553408 hits=70745878 multipage=1 tracked=1 state_checks=300 guard_checks=300 sessions=22500
+fps_detail_gl batch=0 color_cache=0 end_ms=0.0000 bind_ms=0.0000 color_ms=0.0000 skipped=0 oracle=1
+fps_detail_draw frames=300 decor_ms=1.2585 decor_calls=3668287 count=12186
+fps_frame_probe mode=precise target=240 native_interval_ms=4 samples=300 mean_interval_ms=6.581095 p95_interval_ms=7.766000 sleep_calls=0 sleep_requested_ms=0.000 sleep_actual_ms_per_frame=0.000000 timer_waits=0 timer_wait_ms_per_frame=0.000000 suppressed_native_sleeps=175 process_cpu_ms_per_frame=10.572917 main_thread_cpu_ms_per_frame=5.156250 yield=0 route=0x2406f2
+fps_pixel_oracle width=1280 height=720 background_exact=1 different_channels=0 max_delta=0 baseline_gl_error=0 candidate_gl_error=0 batch=0 color_cache=0 arrays=1 state_equal=1 client_session_closed=1 original_control=0 quality=9
+fps_lab branch=high thread=26716 frames=300 mean_ms=1.7619 max_ms=31.5307
+fps_detail mode=0 frames=300 wait_ms=0.0000 wait_calls=0 buckets_ms=0.0224 bucket_sort_cpu_ms=0.0000 sprite_sort_ms=0.0000 candidate_ms=0.0000 sort_calls=0 mismatches=0 sprites_min=2147483647 sprites_max=0 zoom=12.0000 camera=40.0000,40.0000 plane=0 quality=9
+fps_detail_arrays enabled=1 draw_ms=0.2985 draws=22800 vertices=14535600 replays=0 lazy_binds=1 source_binds=1784247 client_sessions=1 client_setups=22500
+fps_texture_array enabled=1 status=ready GLSL130 compatibility original UV and mip layers uploads=121 rejected=4 bytes=33553408 hits=74379778 multipage=1 tracked=1 state_checks=300 guard_checks=300 sessions=22500
+fps_detail_gl batch=0 color_cache=0 end_ms=0.0000 bind_ms=0.0000 color_ms=0.0000 skipped=0 oracle=1
+fps_detail_draw frames=300 decor_ms=1.2424 decor_calls=3668287 count=12186
+fps_frame_probe mode=precise target=240 native_interval_ms=4 samples=300 mean_interval_ms=6.417608 p95_interval_ms=6.591200 sleep_calls=0 sleep_requested_ms=0.000 sleep_actual_ms_per_frame=0.000000 timer_waits=0 timer_wait_ms_per_frame=0.000000 suppressed_native_sleeps=179 process_cpu_ms_per_frame=10.416667 main_thread_cpu_ms_per_frame=4.947917 yield=0 route=0x2406f2
+fps_pixel_oracle width=1280 height=720 background_exact=1 different_channels=1 max_delta=1 baseline_gl_error=0 candidate_gl_error=0 batch=0 color_cache=0 arrays=1 state_equal=1 client_session_closed=1 original_control=0 quality=9
+fps_lab branch=high thread=26716 frames=300 mean_ms=1.7685 max_ms=31.1519
+fps_detail mode=0 frames=300 wait_ms=0.0000 wait_calls=0 buckets_ms=0.0230 bucket_sort_cpu_ms=0.0000 sprite_sort_ms=0.0000 candidate_ms=0.0000 sort_calls=0 mismatches=0 sprites_min=2147483647 sprites_max=0 zoom=12.0000 camera=40.0000,40.0000 plane=0 quality=9
+fps_detail_arrays enabled=1 draw_ms=0.2976 draws=22800 vertices=14535600 replays=0 lazy_binds=1 source_binds=1784199 client_sessions=1 client_setups=22500
+fps_texture_array enabled=1 status=ready GLSL130 compatibility original UV and mip layers uploads=121 rejected=4 bytes=33553408 hits=78013678 multipage=1 tracked=1 state_checks=300 guard_checks=300 sessions=22500
+fps_detail_gl batch=0 color_cache=0 end_ms=0.0000 bind_ms=0.0000 color_ms=0.0000 skipped=0 oracle=1
+fps_detail_draw frames=300 decor_ms=1.2489 decor_calls=3668287 count=12186
+fps_frame_probe mode=precise target=240 native_interval_ms=4 samples=300 mean_interval_ms=6.454796 p95_interval_ms=6.588500 sleep_calls=0 sleep_requested_ms=0.000 sleep_actual_ms_per_frame=0.000000 timer_waits=0 timer_wait_ms_per_frame=0.000000 suppressed_native_sleeps=178 process_cpu_ms_per_frame=11.718750 main_thread_cpu_ms_per_frame=5.833333 yield=0 route=0x2406f2
+fps_pixel_oracle width=1280 height=720 background_exact=1 different_channels=1 max_delta=1 baseline_gl_error=0 candidate_gl_error=0 batch=0 color_cache=0 arrays=1 state_equal=1 client_session_closed=1 original_control=0 quality=9
+fps_lab branch=high thread=26716 frames=300 mean_ms=1.7504 max_ms=30.9806
+fps_detail mode=0 frames=300 wait_ms=0.0000 wait_calls=0 buckets_ms=0.0226 bucket_sort_cpu_ms=0.0000 sprite_sort_ms=0.0000 candidate_ms=0.0000 sort_calls=0 mismatches=0 sprites_min=2147483647 sprites_max=0 zoom=12.0000 camera=40.0000,40.0000 plane=0 quality=9
+fps_detail_arrays enabled=1 draw_ms=0.2957 draws=22800 vertices=14535600 replays=0 lazy_binds=1 source_binds=1784123 client_sessions=1 client_setups=22500
+fps_texture_array enabled=1 status=ready GLSL130 compatibility original UV and mip layers uploads=121 rejected=4 bytes=33553408 hits=81647578 multipage=1 tracked=1 state_checks=300 guard_checks=300 sessions=22500
+fps_detail_gl batch=0 color_cache=0 end_ms=0.0000 bind_ms=0.0000 color_ms=0.0000 skipped=0 oracle=1
+fps_detail_draw frames=300 decor_ms=1.2345 decor_calls=3668287 count=12186
+fps_frame_probe mode=precise target=240 native_interval_ms=4 samples=300 mean_interval_ms=6.441872 p95_interval_ms=6.567800 sleep_calls=0 sleep_requested_ms=0.000 sleep_actual_ms_per_frame=0.000000 timer_waits=0 timer_wait_ms_per_frame=0.000000 suppressed_native_sleeps=177 process_cpu_ms_per_frame=11.302083 main_thread_cpu_ms_per_frame=5.052083 yield=0 route=0x2406f2
+fps_pixel_oracle width=1280 height=720 background_exact=1 different_channels=0 max_delta=0 baseline_gl_error=0 candidate_gl_error=0 batch=0 color_cache=0 arrays=1 state_equal=1 client_session_closed=1 original_control=0 quality=9
+fps_lab branch=high thread=26716 frames=300 mean_ms=1.7538 max_ms=30.8527
+fps_detail mode=0 frames=300 wait_ms=0.0000 wait_calls=0 buckets_ms=0.0226 bucket_sort_cpu_ms=0.0000 sprite_sort_ms=0.0000 candidate_ms=0.0000 sort_calls=0 mismatches=0 sprites_min=2147483647 sprites_max=0 zoom=12.0000 camera=40.0000,40.0000 plane=0 quality=9
+fps_detail_arrays enabled=1 draw_ms=0.2964 draws=22800 vertices=14535600 replays=0 lazy_binds=1 source_binds=1784245 client_sessions=1 client_setups=22500
+fps_texture_array enabled=1 status=ready GLSL130 compatibility original UV and mip layers uploads=121 rejected=4 bytes=33553408 hits=85281478 multipage=1 tracked=1 state_checks=300 guard_checks=300 sessions=22500
+fps_detail_gl batch=0 color_cache=0 end_ms=0.0000 bind_ms=0.0000 color_ms=0.0000 skipped=0 oracle=1
+fps_detail_draw frames=300 decor_ms=1.2381 decor_calls=3668287 count=12186
+fps_frame_probe mode=precise target=240 native_interval_ms=4 samples=300 mean_interval_ms=6.407646 p95_interval_ms=6.613600 sleep_calls=0 sleep_requested_ms=0.000 sleep_actual_ms_per_frame=0.000000 timer_waits=0 timer_wait_ms_per_frame=0.000000 suppressed_native_sleeps=178 process_cpu_ms_per_frame=10.572917 main_thread_cpu_ms_per_frame=5.052083 yield=0 route=0x2406f2
+fps_pixel_oracle width=1280 height=720 background_exact=1 different_channels=1 max_delta=1 baseline_gl_error=0 candidate_gl_error=0 batch=0 color_cache=0 arrays=1 state_equal=1 client_session_closed=1 original_control=0 quality=9
+fps_lab branch=high thread=26716 frames=300 mean_ms=1.7759 max_ms=31.0594
+fps_detail mode=0 frames=300 wait_ms=0.0000 wait_calls=0 buckets_ms=0.0230 bucket_sort_cpu_ms=0.0000 sprite_sort_ms=0.0000 candidate_ms=0.0000 sort_calls=0 mismatches=0 sprites_min=2147483647 sprites_max=0 zoom=12.0000 camera=40.0000,40.0000 plane=0 quality=9
+fps_detail_arrays enabled=1 draw_ms=0.2986 draws=22800 vertices=14535600 replays=0 lazy_binds=1 source_binds=1784239 client_sessions=1 client_setups=22500
+fps_texture_array enabled=1 status=ready GLSL130 compatibility original UV and mip layers uploads=121 rejected=4 bytes=33553408 hits=88915378 multipage=1 tracked=1 state_checks=300 guard_checks=300 sessions=22500
+fps_detail_gl batch=0 color_cache=0 end_ms=0.0000 bind_ms=0.0000 color_ms=0.0000 skipped=0 oracle=1
+fps_detail_draw frames=300 decor_ms=1.2539 decor_calls=3668287 count=12186
+fps_frame_probe mode=precise target=240 native_interval_ms=4 samples=300 mean_interval_ms=6.467461 p95_interval_ms=6.694300 sleep_calls=0 sleep_requested_ms=0.000 sleep_actual_ms_per_frame=0.000000 timer_waits=0 timer_wait_ms_per_frame=0.000000 suppressed_native_sleeps=177 process_cpu_ms_per_frame=10.781250 main_thread_cpu_ms_per_frame=5.364583 yield=0 route=0x2406f2
+fps_pixel_oracle width=1280 height=720 background_exact=1 different_channels=0 max_delta=0 baseline_gl_error=0 candidate_gl_error=0 batch=0 color_cache=0 arrays=1 state_equal=1 client_session_closed=1 original_control=0 quality=9
+fps_lab branch=high thread=26716 frames=300 mean_ms=1.7787 max_ms=31.3296
+fps_detail mode=0 frames=300 wait_ms=0.0000 wait_calls=0 buckets_ms=0.0228 bucket_sort_cpu_ms=0.0000 sprite_sort_ms=0.0000 candidate_ms=0.0000 sort_calls=0 mismatches=0 sprites_min=2147483647 sprites_max=0 zoom=12.0000 camera=40.0000,40.0000 plane=0 quality=9
+fps_detail_arrays enabled=1 draw_ms=0.2999 draws=22800 vertices=14535600 replays=0 lazy_binds=1 source_binds=1784125 client_sessions=1 client_setups=22500
+fps_texture_array enabled=1 status=ready GLSL130 compatibility original UV and mip layers uploads=121 rejected=4 bytes=33553408 hits=92549278 multipage=1 tracked=1 state_checks=300 guard_checks=300 sessions=22500
+fps_detail_gl batch=0 color_cache=0 end_ms=0.0000 bind_ms=0.0000 color_ms=0.0000 skipped=0 oracle=1
+fps_detail_draw frames=300 decor_ms=1.2571 decor_calls=3668287 count=12186
+fps_frame_probe mode=precise target=240 native_interval_ms=4 samples=300 mean_interval_ms=6.494153 p95_interval_ms=6.663300 sleep_calls=0 sleep_requested_ms=0.000 sleep_actual_ms_per_frame=0.000000 timer_waits=0 timer_wait_ms_per_frame=0.000000 suppressed_native_sleeps=177 process_cpu_ms_per_frame=11.197917 main_thread_cpu_ms_per_frame=5.208333 yield=0 route=0x2406f2
+fps_pixel_oracle width=1280 height=720 background_exact=1 different_channels=0 max_delta=0 baseline_gl_error=0 candidate_gl_error=0 batch=0 color_cache=0 arrays=1 state_equal=1 client_session_closed=1 original_control=0 quality=9
+fps_lab branch=high thread=26716 frames=300 mean_ms=1.7524 max_ms=31.0210
+fps_detail mode=0 frames=300 wait_ms=0.0000 wait_calls=0 buckets_ms=0.0225 bucket_sort_cpu_ms=0.0000 sprite_sort_ms=0.0000 candidate_ms=0.0000 sort_calls=0 mismatches=0 sprites_min=2147483647 sprites_max=0 zoom=12.0000 camera=40.0000,40.0000 plane=0 quality=9
+fps_detail_arrays enabled=1 draw_ms=0.2974 draws=22800 vertices=14535600 replays=0 lazy_binds=1 source_binds=1784199 client_sessions=1 client_setups=22500
+fps_texture_array enabled=1 status=ready GLSL130 compatibility original UV and mip layers uploads=121 rejected=4 bytes=33553408 hits=96183178 multipage=1 tracked=1 state_checks=300 guard_checks=300 sessions=22500
+fps_detail_gl batch=0 color_cache=0 end_ms=0.0000 bind_ms=0.0000 color_ms=0.0000 skipped=0 oracle=1
+fps_detail_draw frames=300 decor_ms=1.2363 decor_calls=3668287 count=12186
+fps_frame_probe mode=precise target=240 native_interval_ms=4 samples=300 mean_interval_ms=6.388393 p95_interval_ms=6.580900 sleep_calls=0 sleep_requested_ms=0.000 sleep_actual_ms_per_frame=0.000000 timer_waits=0 timer_wait_ms_per_frame=0.000000 suppressed_native_sleeps=179 process_cpu_ms_per_frame=10.885417 main_thread_cpu_ms_per_frame=5.156250 yield=0 route=0x2406f2
+fps_pixel_oracle width=1280 height=720 background_exact=1 different_channels=0 max_delta=0 baseline_gl_error=0 candidate_gl_error=0 batch=0 color_cache=0 arrays=1 state_equal=1 client_session_closed=1 original_control=0 quality=9

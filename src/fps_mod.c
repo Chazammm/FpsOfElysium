@@ -1,5 +1,5 @@
-// FPSofElysiumSE: rendering-only CoE5SE API 11 plugin, pinned to CoE5 5.43.
-// No camera, quality, turn, timer, sorter or worker-pool changes.
+// FPSofElysiumSE: map rendering and optional pacing, pinned to CoE5 5.43 / API 11.
+// No camera, quality, turn, sorter or worker-pool changes. Pacing is optional.
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <bcrypt.h>
@@ -30,11 +30,13 @@ static long long now_ticks(void) {return 0;}
 
 typedef void (*ModDecorFn)(int,int,uintptr_t,float,float,float,float,float);
 static void (*mod_original_highest)(void);
+static void (*mod_original_high)(void);
 static ModDecorFn mod_original_decor;
 static const int *mod_setting_enabled;
 static int mod_operational,mod_reported_ready,mod_reported_graphics;
 static unsigned mod_reported_reasons;
 static int mod_reported_setting=-1;
+static unsigned mod_reported_qualities;
 
 static void mod_log(const char *line) {
     if(plugin_api && plugin_api->logLine)plugin_api->logLine((const void *)mod_log,line);
@@ -91,7 +93,7 @@ static void mod_decor(int file,int sprite,uintptr_t unused,float x,float y,float
     mod_original_decor(file,sprite,unused,x,y,width,height,skew);
     decor_scope=0;
 }
-static void mod_highest(void) {
+static void mod_render_pass(void (*draw)(void),const char *path) {
     mod_log_graphics();
     if(!mod_setting_enabled && plugin_api && plugin_api->setting)
         mod_setting_enabled=plugin_api->setting("enabled");
@@ -101,17 +103,24 @@ static void mod_highest(void) {
         mod_log(enabled?"fps_mod setting enabled=1":"fps_mod setting enabled=0");
     }
     if(!mod_operational || !enabled) {
-        mod_original_highest();return;
+        draw();return;
+    }
+    int quality=*(int *)(detail_base+0x1a50e2c);
+    unsigned bit=quality>=9 && quality<=13?1u<<(quality-9):0;
+    if(bit && !(mod_reported_qualities&bit)){
+        char line[200];snprintf(line,sizeof(line),"fps_mod map_renderer quality=%d path=%s batching_requested=1 quality_unchanged=1",quality,path);mod_log(line);mod_reported_qualities|=bit;
     }
     atlas_begin_frame();array_texture_begin_frame();arrays_begin_frame();
-    in_highest=1;mod_original_highest();arrays_end_frame();batch_flush();in_highest=0;decor_scope=0;
+    in_highest=1;draw();arrays_end_frame();batch_flush();in_highest=0;decor_scope=0;
     if(!mod_reported_ready && ta_context_ok && ta_uploads) {
         char line[384];mod_reported_ready=1;
-        snprintf(line,sizeof(line),"fps_mod renderer_ready version=" FPS_MOD_VERSION " game=5.43 api=11 original_uv=1 original_mips=1 quality_unchanged=1 multi_page=%d state_tracking=%d uploads=%lld cache_mib=%.2f",ta_multi_page,ta_track_state,ta_uploads,(double)ta_bytes/(1024.0*1024.0));
+        snprintf(line,sizeof(line),"fps_mod renderer_ready version=" FPS_MOD_VERSION " game=5.43 api=11 quality=%d path=%s original_uv=1 original_mips=1 quality_unchanged=1 multi_page=%d state_tracking=%d uploads=%lld cache_mib=%.2f",quality,path,ta_multi_page,ta_track_state,ta_uploads,(double)ta_bytes/(1024.0*1024.0));
         mod_log(line);
     }
     mod_log_fallbacks();
 }
+static void mod_highest(void){mod_render_pass(mod_original_highest,"highest_ultra");}
+static void mod_high(void){mod_render_pass(mod_original_high,"low_medium_high");}
 
 typedef struct {
     uintptr_t site,target;
@@ -121,8 +130,10 @@ typedef struct {
 typedef struct { unsigned char *page;SIZE_T size;DWORD original; } ModCodePage;
 static ModCall mod_calls[]={
     {0x19d621,0x1ab380,mod_highest,{0}},
+    {0x19d628,0x1ab0e0,mod_high,{0}},
     {0x1ab7c1,0x063ec0,(void (*)(void))mod_decor,{0}},
     {0x1ab9f1,0x063ec0,(void (*)(void))mod_decor,{0}},
+    {0x1ab2c2,0x063ec0,(void (*)(void))mod_decor,{0}},
     {0x197dff,0x035400,fps_graphics_section_end,{0}},
     {0x19833d,0x23ec30,(void (*)(void))fps_preferences_wait,{0}},
     {0x197d20,0x0389a0,(void (*)(void))fps_frame_rate_choices,{0}}
@@ -215,6 +226,7 @@ COE5SE_PLUGIN_LOAD(api) {
     plugin_api=api;detail_base=(unsigned char *)GetModuleHandleW(NULL);
     mod_log("fps_mod startup version=" FPS_MOD_VERSION " required_game=5.43 api=11 diagnostics=once_per_category");
     mod_original_highest=(void (*)(void))(detail_base+0x1ab380);
+    mod_original_high=(void (*)(void))(detail_base+0x1ab0e0);
     mod_original_decor=(ModDecorFn)(detail_base+0x63ec0);
     // Silence unused aggregate profiler declarations; no timing code is included.
     (void)skipped_sum;(void)end_sum;(void)bind_sum;(void)color_sum;
