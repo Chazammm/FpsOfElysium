@@ -1,5 +1,44 @@
 # Changelog
 
+## 0.1.8-local — experimental source snapshot, 2026-11-12
+
+- Batch consecutive quads across up to eight texture-array pages without changing their order. Carry the page index separately from the original UV coordinates and layer index; preserve original mip chains, texture filtering and vertex colors.
+- Keep the batching shader active across compatible flushes. Save, bind and restore all eight reserved texture-array units and their sampler objects for each drawing session. Rebind pages each session so foreign texture state is never assumed to persist.
+- Read stable graphics state once per map pass and track the pinned game's relevant enable/disable, texture-environment and matrix changes. Keep native submission boundaries and original drawing for unsupported states and assets.
+- Require nine fragment texture units for multi-page batching and sampler binding support when sampler objects exist; otherwise retain the previous single-page path. Reject explicit core-only contexts while accepting a zero profile mask.
+- Add tracked-state regressions; verify multi-page bindings, foreign-state restoration across sessions, sampler overrides and fixed-function fallbacks on the actual GPU. Repeat original/candidate framebuffer and final-state comparisons at two zoom levels. The final run differed in two RGBA channels per image, at most 1/255, with matching checked state and no GL errors.
+- Isolated Ultra map-section time: 6.02 ms versus 8.06–8.28 ms for the previous batching path, about 25–27% less section time. Roughly 4,580 draw submissions per frame become 420. No new whole-game foreground FPS result; no graphics-quality reduction or FPS-limiter change.
+- Adapt ideas from musical_pianist's texture-array-batching contribution; retain the existing exact-game and loader guards. Verify the actual CoE5SE plugin reaches `renderer_ready` with both additions active.
+
+## 0.1.7-local — local test stage, included in the 0.1.8 snapshot
+
+- Remove Unlimited from Graphics 1. Keep the existing bounded 144/165/240/360 targets and the native 20/30/60/120 options.
+- Migrate saved zero-delay preferences and legacy native zero-delay configurations to the existing bounded 360 target (3 ms). Repair a reloaded zero at the main-menu/map boundary too; do not change positive intervals or explicit positive launch limits.
+- Map the legacy uncapped menu ID to the bounded target and never save zero through this menu.
+- Test migration, repeated configuration reload, legacy selection, capped startup values, argument priority and the actual menu. Rendering and graphics quality are unchanged.
+
+## 0.1.6-local — local test stage, included in the 0.1.8 snapshot
+
+- Extend native Graphics 1 → Frame Rate with approximate 144/165/240/360 targets and Unlimited. Retain the original choices and native timing/selection handler; do not alter rendering, quality or VSync.
+- Remember every native FPS-menu selection, including switching back to 60/120, in the mod INI. Restore it once after native configuration loading at the main menu or first map draw. Explicit `--maxfps=...` takes priority on restart.
+- Mark higher targets as approximate and explain the corresponding native budgets: 7/6/4/3 ms. Unlimited uses 0 ms. These values do not guarantee a rendered frame rate or exact monitor synchronization.
+- Guard the added radio-draw callsite in the existing complete preflight (six pinned game calls). Test native forwarding, all five added choices, persistence, invalid settings, legacy choices and one-time restore; verify startup values and the actual in-game menu.
+
+## 0.1.5-local — local test stage, included in the 0.1.8 snapshot
+
+- Add "Wait for GPU each frame" to the native Preferences → Graphics 2 page. Unchecked selects the game's existing `--noglfinish` behavior; checked selects `--glfinish`. It changes neither VSync nor graphics quality or the FPS limiter.
+- Apply changes immediately and remember them in `FPSofElysiumSE.ini` beside the plugin, outside saves and the binary game configuration. Preserve the game's state when no preference exists; explicit launch flags take priority on restart.
+- Guard both added native menu callsites in the existing all-before-write preflight and patch transaction (five game callsites in total).
+- Verify native checkbox display, both toggle directions, persistence across restart, and argument/preference handling. No additional FPS improvement is claimed: the inspected CoE5 5.43 binary and the default lab launch already have this extra GPU wait disabled.
+
+## 0.1.4-local — local test stage, included in the 0.1.8 snapshot
+
+- Preflight all 48 GL/GLU import slots and the three pinned game callsites before changing graphics imports. A conflicting target disables the optimization and reports the function, slot and owner module.
+- Log the local mod version and startup result; log vendor, renderer, OpenGL driver string, GLSL version, context profile, array-layer limit and cache limit once a current context is available.
+- Record specific original-renderer fallback causes, emitting each category at most once per launch instead of an ambiguous generic ready/fallback message.
+- Add tests for every modified import slot, altered callsite instructions/targets, diagnostic deduplication and unchanged main-menu callback forwarding.
+- Rendering order, textures, mipmaps and shader output are unchanged. This local build has no new performance claim.
+
 ## 0.1.3 — experimental, 2026-11-10
 
 - Release cached texture-array layers on source invalidation/deletion and reuse freed layers. Rehash deleted-name probe clusters so texture-name churn cannot permanently occupy all cache entries.

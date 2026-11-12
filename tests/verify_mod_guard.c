@@ -4,7 +4,7 @@
 #include <string.h>
 #include "jazzy_api.h"
 static int mismatch,settings_called;
-static void log_probe(const void *owner,const char *line) {(void)owner;if(strstr(line,"game_hash_or_call_signature_mismatch"))mismatch++;}
+static void log_probe(const void *owner,const char *line) {(void)owner;if(strstr(line,"unsupported_game_hash"))mismatch++;}
 static const int *setting_probe(const char *key) {(void)key;settings_called++;return NULL;}
 int main(void) {
     HMODULE library=LoadLibraryW(L"FPSofElysiumSE.c5plugin.dll");

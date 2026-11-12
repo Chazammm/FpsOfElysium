@@ -28,7 +28,7 @@ int main(void) {
     for(int cycle=0;cycle<20000;cycle++) {
         int layer=ta_available_layer(&ta_pages[0]);CHECK(layer==0);
         ta_pages[0].occupied[layer]=1;ta_pages[0].used++;
-        entry->decision=1;entry->value=(FpsTextureLayer){17,77,layer,64,64,7};
+        entry->decision=1;entry->value=(FpsTextureLayer){17,77,layer,64,64,7,0};
         array_texture_forget(17);CHECK(ta_pages[0].used==0 && entry->decision==0 && !entry->value.array_texture);
     }
     array_texture_remove(17);CHECK(!find(17));

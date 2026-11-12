@@ -1,0 +1,98 @@
+{
+  "version": "0.1.8-local",
+  "date": "2026-11-12",
+  "game": "CoE5 5.43 Windows x64",
+  "gpu": "AMD Radeon RX 7900 XTX",
+  "method": "Native isolated harness using the same renderer headers; separate launches; section timings, not whole-game FPS.",
+  "scene": {
+    "quality": 13,
+    "plane": 0,
+    "camera": [
+      40,
+      40
+    ],
+    "zoom": 16,
+    "requested_window": [
+      1280,
+      720
+    ],
+    "process_local_workers": 16,
+    "bounded_fps_target": 240,
+    "seconds_per_launch": 20,
+    "timing_oracle_enabled": false,
+    "timing_gpu_fixtures_enabled": false
+  },
+  "runs": [
+    {
+      "name": "previous_path",
+      "multi_page": false,
+      "state_tracking": false,
+      "log": "native-pages0-tracked0-arrays1-atlas0-layers1-lazy1-sessions1-q13-zoom16-control0-shader0-20261112-142221.log",
+      "excluded_warmup_blocks": 1,
+      "frames_per_block": 300,
+      "steady_blocks": 3,
+      "section_mean_ms": 8.064,
+      "section_min_block_ms": 8.0605,
+      "section_max_block_ms": 8.0678
+    },
+    {
+      "name": "multi_page_only",
+      "multi_page": true,
+      "state_tracking": false,
+      "log": "native-pages1-tracked0-arrays1-atlas0-layers1-lazy1-sessions1-q13-zoom16-control0-shader0-20261112-142537.log",
+      "excluded_warmup_blocks": 1,
+      "frames_per_block": 300,
+      "steady_blocks": 4,
+      "section_mean_ms": 6.305125,
+      "section_min_block_ms": 6.2803,
+      "section_max_block_ms": 6.3212
+    },
+    {
+      "name": "tracking_only",
+      "multi_page": false,
+      "state_tracking": true,
+      "log": "native-pages0-tracked1-arrays1-atlas0-layers1-lazy1-sessions1-q13-zoom16-control0-shader0-20261112-142557.log",
+      "excluded_warmup_blocks": 1,
+      "frames_per_block": 300,
+      "steady_blocks": 3,
+      "section_mean_ms": 7.916799999999999,
+      "section_min_block_ms": 7.894,
+      "section_max_block_ms": 7.9597
+    },
+    {
+      "name": "both",
+      "multi_page": true,
+      "state_tracking": true,
+      "log": "native-pages1-tracked1-arrays1-atlas0-layers1-lazy1-sessions1-q13-zoom16-control0-shader0-20261112-142617.log",
+      "excluded_warmup_blocks": 1,
+      "frames_per_block": 300,
+      "steady_blocks": 4,
+      "section_mean_ms": 6.024175,
+      "section_min_block_ms": 6.0076,
+      "section_max_block_ms": 6.0318
+    },
+    {
+      "name": "previous_path_repeat",
+      "multi_page": false,
+      "state_tracking": false,
+      "log": "native-pages0-tracked0-arrays1-atlas0-layers1-lazy1-sessions1-q13-zoom16-control0-shader0-20261112-142637.log",
+      "excluded_warmup_blocks": 1,
+      "frames_per_block": 300,
+      "steady_blocks": 3,
+      "section_mean_ms": 8.2846,
+      "section_min_block_ms": 8.276,
+      "section_max_block_ms": 8.3012
+    }
+  ],
+  "section_time_reductions_percent": [
+    25.295448908730165,
+    27.28466069574874
+  ],
+  "whole_game_fps_measured": false,
+  "limitations": [
+    "Animated scenes vary slightly across launches.",
+    "Single-feature runs are diagnostic samples, not repeated independent effect estimates.",
+    "Only the listed AMD GPU and scenes were tested.",
+    "Section-time improvements are not overall FPS gains."
+  ]
+}

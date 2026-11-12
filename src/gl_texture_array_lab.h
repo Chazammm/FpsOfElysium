@@ -2,20 +2,27 @@
 // bytes are retained; UV.z supplies a layer, identically for all quad vertices.
 // Include after Windows/stdint/stdio/string declarations. No game/SE dependency.
 #pragma once
+#include "render_diagnostics.h"
 #define TA_CACHE_SIZE 4096
 #define TA_MAX_PAGES 8
 #define TA_BUDGET (128u*1024u*1024u)
 typedef struct {
     unsigned source_texture,array_texture;
-    int layer,width,height,mip_count;
+    int layer,width,height,mip_count,page;
 } FpsTextureLayer;
 typedef struct {
     unsigned texture,min_filter,mag_filter;
     int size,last_level,layers,used;
     unsigned char occupied[256];
 } FpsTextureArrayPage;
-typedef struct { unsigned source;int decision;FpsTextureLayer value; } FpsTextureArrayEntry;
+typedef struct { unsigned source;int decision;FpsTextureLayer value;FpsFallbackReason reason; } FpsTextureArrayEntry;
 static int texture_array_enabled;
+static int ta_multi_page,ta_track_state;
+static _Thread_local int ta_texture_on,ta_modulate;
+static _Thread_local unsigned ta_forbidden;
+static _Thread_local int ta_saved_arrays[TA_MAX_PAGES],ta_saved_samplers[TA_MAX_PAGES];
+static _Thread_local unsigned ta_bound_pages[TA_MAX_PAGES];
+static _Thread_local long long ta_state_checks,ta_draw_sessions;
 static _Thread_local HGLRC ta_context;
 static _Thread_local int ta_context_ok,ta_context_attempted,ta_state_checked,ta_state_ok,ta_drawing;
 static _Thread_local int ta_has_aniso,ta_has_swizzle,ta_has_sampler,ta_page_count;
@@ -25,6 +32,7 @@ static _Thread_local FpsTextureArrayPage ta_pages[TA_MAX_PAGES];
 static _Thread_local FpsTextureArrayEntry ta_entries[TA_CACHE_SIZE];
 static _Thread_local long long ta_hits,ta_uploads,ta_rejected,ta_bytes;
 static _Thread_local char ta_status[1024];
+static _Thread_local FpsFallbackReason ta_reject_reason;
 static HMODULE ta_gl;
 static HGLRC (WINAPI *ta_current_context)(void);
 static PROC (WINAPI *ta_wgl_proc)(LPCSTR);
@@ -62,8 +70,10 @@ static void (*ta_delete_program)(unsigned);
 static void (*ta_use_program)(unsigned);
 static int (*ta_uniform_location)(unsigned,const char *);
 static void (*ta_uniform1i)(int,int);
+static void (*ta_bind_sampler)(unsigned,unsigned);
 
 static void ta_message(const char *text) {snprintf(ta_status,sizeof(ta_status),"%s",text);}
+static int ta_refuse(FpsFallbackReason reason) {ta_reject_reason=reason;fps_note_fallback(reason);return 0;}
 static int ta_extension(const char *list,const char *word) {
     const char *p=list;size_t n=strlen(word);
     while(p && (p=strstr(p,word))) {if((p==list || p[-1]==' ') && (!p[n] || p[n]==' '))return 1;p+=n;}
@@ -76,10 +86,10 @@ static void *ta_proc(const char *name) {
     return p;
 }
 static unsigned ta_shader(unsigned kind,const char *source) {
-    unsigned shader=ta_create_shader(kind);if(!shader)return 0;
+    unsigned shader=ta_create_shader(kind);if(!shader)return (unsigned)ta_refuse(FPS_ALLOCATION);
     ta_shader_source(shader,1,&source,NULL);ta_compile_shader(shader);
     int ok=0;ta_get_shader(shader,0x8b81,&ok);
-    if(!ok) {ta_shader_log(shader,sizeof(ta_status),NULL,ta_status);ta_delete_shader(shader);return 0;}
+    if(!ok) {ta_shader_log(shader,sizeof(ta_status),NULL,ta_status);ta_delete_shader(shader);return (unsigned)ta_refuse(FPS_SHADER_COMPILE);}
     return shader;
 }
 static int ta_build_program(void) {
@@ -93,6 +103,19 @@ static int ta_build_program(void) {
         "uniform sampler2DArray sourceImages;in vec2 sampleUV;in vec4 sampleColor;flat in int sampleLayer;\n"
         "void main(){gl_FragColor=texture(sourceImages,vec3(sampleUV,float(sampleLayer)))*sampleColor;}\n";
     const char *vertex_source=vertex,*fragment_source=fragment;
+    static const char multi_vertex[]=
+        "#version 130\nout vec2 sampleUV;out vec4 sampleColor;flat out int sampleLayer;flat out int samplePage;\n"
+        "void main(){gl_Position=ftransform();sampleUV=gl_MultiTexCoord0.xy;sampleLayer=int(gl_MultiTexCoord0.z+0.5);"
+        "samplePage=int(gl_MultiTexCoord0.w+0.5);sampleColor=clamp(gl_Color,0.0,1.0);}\n";
+    static const char multi_fragment[]=
+        "#version 130\nuniform sampler2DArray page0,page1,page2,page3,page4,page5,page6,page7;\n"
+        "in vec2 sampleUV;in vec4 sampleColor;flat in int sampleLayer;flat in int samplePage;\n"
+        "void main(){vec3 c=vec3(sampleUV,float(sampleLayer));vec4 t;"
+        "if(samplePage==0)t=texture(page0,c);else if(samplePage==1)t=texture(page1,c);"
+        "else if(samplePage==2)t=texture(page2,c);else if(samplePage==3)t=texture(page3,c);"
+        "else if(samplePage==4)t=texture(page4,c);else if(samplePage==5)t=texture(page5,c);"
+        "else if(samplePage==6)t=texture(page6,c);else t=texture(page7,c);gl_FragColor=t*sampleColor;}\n";
+    if(ta_multi_page){vertex_source=multi_vertex;fragment_source=multi_fragment;}
 #ifndef FPS_SE_MOD
     char variant[8];int selected=0;
     if(GetEnvironmentVariableA("FPS_SHADER_VARIANT",variant,sizeof(variant)))selected=atoi(variant);
@@ -107,107 +130,146 @@ static int ta_build_program(void) {
     unsigned vs=ta_shader(0x8b31,vertex_source);if(!vs)return 0;
     unsigned fs=ta_shader(0x8b30,fragment_source);if(!fs){ta_delete_shader(vs);return 0;}
     unsigned program=ta_create_program();
-    if(!program) {ta_delete_shader(vs);ta_delete_shader(fs);return 0;}
+    if(!program) {ta_delete_shader(vs);ta_delete_shader(fs);return ta_refuse(FPS_ALLOCATION);}
     ta_attach_shader(program,vs);ta_attach_shader(program,fs);ta_link_program(program);
     ta_delete_shader(vs);ta_delete_shader(fs);
     int ok=0;ta_get_program(program,0x8b82,&ok);
-    if(!ok) {ta_program_log(program,sizeof(ta_status),NULL,ta_status);ta_delete_program(program);return 0;}
-    int location=ta_uniform_location(program,"sourceImages");
-    if(location<0) {ta_message("sampler uniform unavailable");ta_delete_program(program);return 0;}
-    int before=0;ta_get_int(0x8b8d,&before);ta_use_program(program);ta_uniform1i(location,0);ta_use_program((unsigned)before);
+    if(!ok) {ta_program_log(program,sizeof(ta_status),NULL,ta_status);ta_delete_program(program);return ta_refuse(FPS_SHADER_LINK);}
+    int locations[TA_MAX_PAGES],count=ta_multi_page?TA_MAX_PAGES:1;
+    for(int i=0;i<count;i++) {
+        char name[8]="page0";name[4]=(char)('0'+i);
+        locations[i]=ta_uniform_location(program,ta_multi_page?name:"sourceImages");
+        if(locations[i]<0){ta_message("sampler uniform unavailable");ta_delete_program(program);return ta_refuse(FPS_SHADER_LINK);}
+    }
+    int before=0;ta_get_int(0x8b8d,&before);ta_use_program(program);
+    for(int i=0;i<count;i++)ta_uniform1i(locations[i],ta_multi_page?i+1:0);
+    ta_use_program((unsigned)before);
     ta_program=program;ta_message("ready GLSL130 compatibility original UV and mip layers");return 1;
 }
 static int ta_initialize_context(void) {
-    HGLRC context=ta_current_context();if(!context)return 0;
-    if(ta_context_attempted)return context==ta_context && ta_context_ok;
+    HGLRC context=ta_current_context();if(!context)return ta_refuse(FPS_NO_CONTEXT);
+    if(ta_context_attempted){if(context!=ta_context)return ta_refuse(FPS_CONTEXT_CHANGED);return ta_context_ok;}
     ta_context_attempted=1;ta_context=context;
-    const char *v=(const char *)ta_get_string(0x1f02),*ext=(const char *)ta_get_string(0x1f03);
+    const char *v=(const char *)ta_get_string(0x1f02),*ext;
     int major=0,minor=0;
-    if(!v || sscanf(v,"%d.%d",&major,&minor)!=2 || major<3) {ta_message("OpenGL 3 compatibility context required");return 0;}
-    if(major>3 || (major==3 && minor>=2)) {int profile=0;ta_get_int(0x9126,&profile);if(!(profile&2)) {ta_message("compatibility profile required");return 0;}}
+    if(!v || sscanf(v,"%d.%d",&major,&minor)!=2 || major<3) {ta_message("OpenGL 3 compatibility context required");return ta_refuse(FPS_GL_VERSION);}
+    if(major>3 || (major==3 && minor>=2)) {int profile=0;ta_get_int(0x9126,&profile);if((profile&1) && !(profile&2)) {ta_message("compatibility profile required");return ta_refuse(FPS_CORE_PROFILE);}}
+    ext=(const char *)ta_get_string(0x1f03);
     ta_has_aniso=ta_extension(ext,"GL_EXT_texture_filter_anisotropic") || ta_extension(ext,"GL_ARB_texture_filter_anisotropic");
     ta_has_swizzle=major>3 || (major==3 && minor>=3) || ta_extension(ext,"GL_ARB_texture_swizzle");
     ta_has_sampler=major>3 || (major==3 && minor>=3) || ta_extension(ext,"GL_ARB_sampler_objects");
-#define TA_EXT(var,name) do {*(void **)&var=ta_proc(name);if(!var){ta_message("missing " name);return 0;}}while(0)
+#define TA_EXT(var,name) do {*(void **)&var=ta_proc(name);if(!var){ta_message("missing " name);return ta_refuse(FPS_ENTRY_POINT);}}while(0)
     TA_EXT(ta_active_texture,"glActiveTexture");TA_EXT(ta_image3d,"glTexImage3D");TA_EXT(ta_subimage3d,"glTexSubImage3D");
     TA_EXT(ta_create_shader,"glCreateShader");TA_EXT(ta_shader_source,"glShaderSource");TA_EXT(ta_compile_shader,"glCompileShader");
     TA_EXT(ta_get_shader,"glGetShaderiv");TA_EXT(ta_shader_log,"glGetShaderInfoLog");TA_EXT(ta_delete_shader,"glDeleteShader");
     TA_EXT(ta_create_program,"glCreateProgram");TA_EXT(ta_attach_shader,"glAttachShader");TA_EXT(ta_link_program,"glLinkProgram");
     TA_EXT(ta_get_program,"glGetProgramiv");TA_EXT(ta_program_log,"glGetProgramInfoLog");TA_EXT(ta_delete_program,"glDeleteProgram");
     TA_EXT(ta_use_program,"glUseProgram");TA_EXT(ta_uniform_location,"glGetUniformLocation");TA_EXT(ta_uniform1i,"glUniform1i");
+    if(ta_multi_page) {
+        int units=0;ta_get_int(0x8872,&units);
+        if(units<TA_MAX_PAGES+1)ta_multi_page=0;
+        else if(ta_has_sampler){*(void **)&ta_bind_sampler=ta_proc("glBindSampler");if(!ta_bind_sampler)ta_multi_page=0;}
+    }
 #undef TA_EXT
     if(!ta_build_program())return 0;
     ta_context_ok=1;return 1;
 }
 static void array_texture_invalidate_state(void) {ta_state_checked=0;}
 static void array_texture_begin_frame(void) {array_texture_invalidate_state();}
+static int ta_cap_bit(unsigned cap) {
+    const unsigned caps[]={0x0b50,0x0b57,0x0b60,0x0de0,0x806f,0x8513,0x8458};
+    for(int i=0;i<7;i++)if(cap==caps[i])return i;
+    if(cap>=0x3000 && cap<0x3006)return 7+(int)(cap-0x3000);
+    if(cap>=0x0c60 && cap<=0x0c63)return 13+(int)(cap-0x0c60);
+    return -1;
+}
+static void ta_note_cap(unsigned cap,int on) {
+    if(cap==0x0de1)ta_texture_on=on;
+    int bit=ta_cap_bit(cap);
+    if(bit>=0)ta_forbidden=on?ta_forbidden|(1u<<bit):ta_forbidden&~(1u<<bit);
+}
+static void ta_read_switches(void) {
+    ta_forbidden=0;ta_texture_on=ta_is_enabled(0x0de1)!=0;
+    const unsigned caps[]={0x0b50,0x0b57,0x0b60,0x0de0,0x806f,0x8513,0x8458,0x3000,0x3001,0x3002,0x3003,0x3004,0x3005,0x0c60,0x0c61,0x0c62,0x0c63};
+    for(size_t i=0;i<sizeof(caps)/sizeof(caps[0]);i++)if(ta_is_enabled(caps[i]))ta_note_cap(caps[i],1);
+    int mode=0;ta_get_env(0x2300,0x2200,&mode);ta_modulate=mode==0x2100;
+}
+static int ta_switches_allowed(void) {
+    if(ta_texture_on && !ta_forbidden && ta_modulate)return 1;
+    return ta_refuse(FPS_FIXED_FUNCTION);
+}
 static int ta_allowed_state(void) {
     if(!texture_array_enabled || !ta_current_context || !ta_initialize_context())return 0;
-    if(ta_state_checked)return ta_state_ok;
+    if(ta_state_checked)return ta_state_ok && (!ta_track_state || ta_switches_allowed());
+    ta_state_checks++;
     ta_state_checked=1;ta_state_ok=0;
-    int value=0;ta_get_int(0x8b8d,&value);if(value)return 0;
-    ta_get_int(0x84e0,&value);if(value!=0x84c0)return 0;
-    ta_get_int(0x88ed,&value);if(value)return 0;ta_get_int(0x88ef,&value);if(value)return 0;
-    ta_get_int(0x8ca6,&value);if(value)return 0;ta_get_int(0x8caa,&value);if(value)return 0;
-    ta_get_int(0x0d10,&value);if(value)return 0;
-    if(ta_has_sampler) {ta_get_int(0x8919,&value);if(value)return 0;}
-    if(!ta_is_enabled(0x0de1) || ta_is_enabled(0x0b50) || ta_is_enabled(0x0b57) || ta_is_enabled(0x0b60))return 0;
-    if(ta_is_enabled(0x0de0) || ta_is_enabled(0x806f) || ta_is_enabled(0x8513) || ta_is_enabled(0x8458))return 0;
-    for(unsigned cap=0x3000;cap<0x3006;cap++)if(ta_is_enabled(cap))return 0;
-    for(unsigned cap=0x0c60;cap<=0x0c63;cap++)if(ta_is_enabled(cap))return 0;
-    ta_get_env(0x2300,0x2200,&value);if(value!=0x2100)return 0; // GL_MODULATE only
-    ta_get_int(0x0c40,&value);if(value!=0x1c00)return 0;
-    ta_get_int(0x0b33,&value);if(value)return 0;
+    int value=0;ta_get_int(0x8b8d,&value);if(value)return ta_refuse(FPS_CUSTOM_PROGRAM);
+    ta_get_int(0x84e0,&value);if(value!=0x84c0)return ta_refuse(FPS_TEXTURE_UNIT);
+    ta_get_int(0x88ed,&value);if(value)return ta_refuse(FPS_PIXEL_BUFFER);ta_get_int(0x88ef,&value);if(value)return ta_refuse(FPS_PIXEL_BUFFER);
+    ta_get_int(0x8ca6,&value);if(value)return ta_refuse(FPS_FRAMEBUFFER);ta_get_int(0x8caa,&value);if(value)return ta_refuse(FPS_FRAMEBUFFER);
+    ta_get_int(0x0d10,&value);if(value)return ta_refuse(FPS_PIXEL_TRANSFER);
+    if(ta_has_sampler) {ta_get_int(0x8919,&value);if(value)return ta_refuse(FPS_SAMPLER_OBJECT);}
+    if(ta_track_state)ta_read_switches();
+    if(!ta_track_state) {
+    if(!ta_is_enabled(0x0de1) || ta_is_enabled(0x0b50) || ta_is_enabled(0x0b57) || ta_is_enabled(0x0b60))return ta_refuse(FPS_FIXED_FUNCTION);
+    if(ta_is_enabled(0x0de0) || ta_is_enabled(0x806f) || ta_is_enabled(0x8513) || ta_is_enabled(0x8458))return ta_refuse(FPS_FIXED_FUNCTION);
+    for(unsigned cap=0x3000;cap<0x3006;cap++)if(ta_is_enabled(cap))return ta_refuse(FPS_FIXED_FUNCTION);
+    for(unsigned cap=0x0c60;cap<=0x0c63;cap++)if(ta_is_enabled(cap))return ta_refuse(FPS_FIXED_FUNCTION);
+    ta_get_env(0x2300,0x2200,&value);if(value!=0x2100)return ta_refuse(FPS_FIXED_FUNCTION); // GL_MODULATE only
+    }
+    ta_get_int(0x0c40,&value);if(value!=0x1c00)return ta_refuse(FPS_RENDER_MODE);
+    ta_get_int(0x0b33,&value);if(value)return ta_refuse(FPS_RENDER_MODE);
     float matrix[16];ta_get_float(0x0ba8,matrix);
-    for(int i=0;i<16;i++)if(matrix[i]!=((i%5)==0?1.0f:0.0f))return 0;
+    for(int i=0;i<16;i++)if(matrix[i]!=((i%5)==0?1.0f:0.0f))return ta_refuse(FPS_TEXTURE_MATRIX);
     const unsigned scales[]={0x0d14,0x0d18,0x0d1a,0x0d1c},biases[]={0x0d15,0x0d19,0x0d1b,0x0d1d};
-    for(int i=0;i<4;i++){float f;ta_get_float(scales[i],&f);if(f!=1.0f)return 0;ta_get_float(biases[i],&f);if(f!=0.0f)return 0;}
-    int units=0;ta_get_int(0x84e2,&units);if(units<1 || units>32)return 0;
+    for(int i=0;i<4;i++){float f;ta_get_float(scales[i],&f);if(f!=1.0f)return ta_refuse(FPS_PIXEL_TRANSFER);ta_get_float(biases[i],&f);if(f!=0.0f)return ta_refuse(FPS_PIXEL_TRANSFER);}
+    int units=0;ta_get_int(0x84e2,&units);if(units<1 || units>32)return ta_refuse(FPS_TEXTURE_UNIT);
     for(int unit=1;unit<units;unit++) {
         ta_active_texture(0x84c0u+(unsigned)unit);
         int enabled=ta_is_enabled(0x0de0) || ta_is_enabled(0x0de1) || ta_is_enabled(0x806f) || ta_is_enabled(0x8513);
-        ta_active_texture(0x84c0);if(enabled)return 0;
+        ta_active_texture(0x84c0);if(enabled)return ta_refuse(FPS_EXTRA_TEXTURE_UNIT);
     }
-    ta_state_ok=1;return 1;
+    ta_state_ok=1;return !ta_track_state || ta_switches_allowed();
 }
 static int ta_source_parameters(int *size,int *last,unsigned *min,unsigned *mag) {
     int w=0,base=0,max=0,s=0,t=0,mi=0,ma=0,compare=0;
-    ta_get_level(0x0de1,0,0x1000,&w);if(w!=64 && w!=128)return 0;
+    ta_get_level(0x0de1,0,0x1000,&w);if(w!=64 && w!=128)return ta_refuse(FPS_TEXTURE_SIZE);
     *size=w;*last=w==64?6:7;
     ta_get_parameter(0x0de1,0x2801,&mi);ta_get_parameter(0x0de1,0x2800,&ma);
-    if((mi!=0x2600 && mi!=0x2601 && (mi<0x2700 || mi>0x2703)) || (ma!=0x2600 && ma!=0x2601))return 0;
-    ta_get_parameter(0x0de1,0x2802,&s);ta_get_parameter(0x0de1,0x2803,&t);if(s!=0x812f || t!=0x812f)return 0;
+    if((mi!=0x2600 && mi!=0x2601 && (mi<0x2700 || mi>0x2703)) || (ma!=0x2600 && ma!=0x2601))return ta_refuse(FPS_TEXTURE_SAMPLING);
+    ta_get_parameter(0x0de1,0x2802,&s);ta_get_parameter(0x0de1,0x2803,&t);if(s!=0x812f || t!=0x812f)return ta_refuse(FPS_TEXTURE_SAMPLING);
     ta_get_parameter(0x0de1,0x813c,&base);ta_get_parameter(0x0de1,0x813d,&max);
-    ta_get_parameter(0x0de1,0x884c,&compare);if(base || max<*last || compare)return 0;
-    float f=0;ta_get_parameter_float(0x0de1,0x813a,&f);if(f!=-1000.0f)return 0;
-    ta_get_parameter_float(0x0de1,0x813b,&f);if(f!=1000.0f)return 0;
-    ta_get_parameter_float(0x0de1,0x8501,&f);if(f!=0.0f)return 0;
-    if(ta_has_aniso){ta_get_parameter_float(0x0de1,0x84fe,&f);if(!(f<=1.0f))return 0;}
-    if(ta_has_swizzle)for(int i=0;i<4;i++){int a=0;ta_get_parameter(0x0de1,0x8e42u+(unsigned)i,&a);if(a!=0x1903+i)return 0;}
+    ta_get_parameter(0x0de1,0x884c,&compare);if(base || max<*last || compare)return ta_refuse(FPS_TEXTURE_SAMPLING);
+    float f=0;ta_get_parameter_float(0x0de1,0x813a,&f);if(f!=-1000.0f)return ta_refuse(FPS_TEXTURE_SAMPLING);
+    ta_get_parameter_float(0x0de1,0x813b,&f);if(f!=1000.0f)return ta_refuse(FPS_TEXTURE_SAMPLING);
+    ta_get_parameter_float(0x0de1,0x8501,&f);if(f!=0.0f)return ta_refuse(FPS_TEXTURE_SAMPLING);
+    if(ta_has_aniso){ta_get_parameter_float(0x0de1,0x84fe,&f);if(!(f<=1.0f))return ta_refuse(FPS_TEXTURE_SAMPLING);}
+    if(ta_has_swizzle)for(int i=0;i<4;i++){int a=0;ta_get_parameter(0x0de1,0x8e42u+(unsigned)i,&a);if(a!=0x1903+i)return ta_refuse(FPS_TEXTURE_SAMPLING);}
     for(int level=0;level<=*last;level++) {
         int width=0,height=0,border=0,format=0,compressed=0;
         ta_get_level(0x0de1,level,0x1000,&width);ta_get_level(0x0de1,level,0x1001,&height);
         ta_get_level(0x0de1,level,0x1005,&border);ta_get_level(0x0de1,level,0x1003,&format);ta_get_level(0x0de1,level,0x86a1,&compressed);
-        if(width!=(w>>level) || height!=width || border || compressed || (format!=0x8058 && format!=0x1908 && format!=4))return 0;
-        for(unsigned attr=0x805c;attr<=0x805f;attr++){int bits=0;ta_get_level(0x0de1,level,attr,&bits);if(bits!=8)return 0;}
+        if(width!=(w>>level) || height!=width || border)return ta_refuse(FPS_TEXTURE_LEVELS);
+        if(compressed || (format!=0x8058 && format!=0x1908 && format!=4))return ta_refuse(FPS_TEXTURE_FORMAT);
+        for(unsigned attr=0x805c;attr<=0x805f;attr++){int bits=0;ta_get_level(0x0de1,level,attr,&bits);if(bits!=8)return ta_refuse(FPS_TEXTURE_FORMAT);}
     }
     *min=(unsigned)mi;*mag=(unsigned)ma;return 1;
 }
 static FpsTextureArrayPage *ta_find_page(int size,int last,unsigned min,unsigned mag) {
     for(int i=0;i<ta_page_count;i++){FpsTextureArrayPage *p=&ta_pages[i];if(p->size==size && p->last_level==last && p->min_filter==min && p->mag_filter==mag && p->used<p->layers)return p;}
-    if(ta_page_count==TA_MAX_PAGES)return NULL;
+    if(ta_page_count==TA_MAX_PAGES){ta_refuse(FPS_CACHE_LIMIT);return NULL;}
     int layers=0;ta_get_int(0x88ff,&layers);if(layers>256)layers=256;
     size_t one=0;for(int level=0;level<=last;level++)one+=(size_t)(size>>level)*(size>>level)*4;
-    long long remaining=(long long)TA_BUDGET-ta_bytes;if(remaining<=0)return NULL;
+    long long remaining=(long long)TA_BUDGET-ta_bytes;if(remaining<=0){ta_refuse(FPS_CACHE_LIMIT);return NULL;}
     if((long long)layers>(remaining/(long long)one))layers=(int)(remaining/(long long)one);
-    if(layers<1)return NULL;
-    unsigned texture=0;ta_generate(1,&texture);if(!texture)return NULL;
+    if(layers<1){ta_refuse(FPS_CACHE_LIMIT);return NULL;}
+    unsigned texture=0;ta_generate(1,&texture);if(!texture){ta_refuse(FPS_ALLOCATION);return NULL;}
     ta_bind(0x8c1a,texture);ta_parameter(0x8c1a,0x2801,(int)min);ta_parameter(0x8c1a,0x2800,(int)mag);
     ta_parameter(0x8c1a,0x2802,0x812f);ta_parameter(0x8c1a,0x2803,0x812f);
     ta_parameter(0x8c1a,0x813c,0);ta_parameter(0x8c1a,0x813d,last);
     for(int level=0;level<=last;level++) {
         int w=size>>level;ta_image3d(0x8c1a,level,0x8058,w,w,layers,0,0x1908,0x1401,NULL);
-        int actual=0;ta_get_level(0x8c1a,level,0x1000,&actual);if(actual!=w){ta_delete(1,&texture);return NULL;}
+        int actual=0;ta_get_level(0x8c1a,level,0x1000,&actual);if(actual!=w){ta_delete(1,&texture);ta_refuse(FPS_ALLOCATION);return NULL;}
     }
     FpsTextureArrayPage *p=&ta_pages[ta_page_count++];
     *p=(FpsTextureArrayPage){.texture=texture,.min_filter=min,.mag_filter=mag,.size=size,.last_level=last,.layers=layers};
@@ -237,16 +299,16 @@ static int ta_clone(unsigned source,FpsTextureLayer *out) {
     ta_get_int(0x8069,&before2d);ta_get_int(0x8c1d,&before_array);ta_bind(0x0de1,source);
     unsigned char *memory=NULL;
     if(!ta_source_parameters(&size,&last,&min,&mag))goto done;
-    memory=HeapAlloc(GetProcessHeap(),0,(size_t)size*size*4);if(!memory)goto done;
+    memory=HeapAlloc(GetProcessHeap(),0,(size_t)size*size*4);if(!memory){ta_refuse(FPS_ALLOCATION);goto done;}
     ta_push_client(0x00000001u);ta_packing();FpsTextureArrayPage *p=ta_find_page(size,last,min,mag);
     if(!p){ta_pop_client();goto done;}
-    int layer=ta_available_layer(p);if(layer<0){ta_pop_client();goto done;}
+    int layer=ta_available_layer(p);if(layer<0){ta_pop_client();ta_refuse(FPS_CACHE_LIMIT);goto done;}
     for(int level=0;level<=last;level++) {
         int w=size>>level;ta_bind(0x0de1,source);ta_get_image(0x0de1,level,0x1908,0x1401,memory);
         ta_bind(0x8c1a,p->texture);ta_subimage3d(0x8c1a,level,0,0,layer,w,w,1,0x1908,0x1401,memory);
     }
     ta_pop_client();p->occupied[layer]=1;p->used++;
-    *out=(FpsTextureLayer){source,p->texture,layer,size,size,last+1};ta_uploads++;ok=1;
+    *out=(FpsTextureLayer){source,p->texture,layer,size,size,last+1,(int)(p-ta_pages)};ta_uploads++;ok=1;
 done:
     if(memory)HeapFree(GetProcessHeap(),0,memory);
     ta_bind(0x8c1a,(unsigned)before_array);ta_bind(0x0de1,(unsigned)before2d);return ok;
@@ -258,11 +320,11 @@ static int array_texture_prepare(unsigned source,FpsTextureLayer *out) {
     for(unsigned i=0;i<TA_CACHE_SIZE;i++) {
         FpsTextureArrayEntry *e=&ta_entries[(index+i)&(TA_CACHE_SIZE-1)];if(e->source && e->source!=source)continue;
         if(!e->source)e->source=source;
-        if(!e->decision){e->decision=ta_clone(source,&e->value)?1:-1;if(e->decision<0)ta_rejected++;}
-        if(e->decision<0)return 0;
+        if(!e->decision){e->decision=ta_clone(source,&e->value)?1:-1;if(e->decision<0){e->reason=ta_reject_reason;ta_rejected++;}}
+        if(e->decision<0){fps_note_fallback(e->reason);return 0;}
         *out=e->value;ta_hits++;return 1;
     }
-    return 0;
+    return ta_refuse(FPS_CACHE_TABLE_FULL);
 }
 static void array_texture_forget(unsigned source) {
     unsigned index=(source*2654435761u)&(TA_CACHE_SIZE-1);
@@ -298,21 +360,49 @@ static void array_texture_remove(unsigned source) {
     }
 }
 static int array_texture_begin_draw(unsigned texture) {
-    if(ta_drawing || !ta_allowed_state())return 0;
+    if(!ta_allowed_state())return 0;
     int own=0;for(int i=0;i<ta_page_count;i++)if(ta_pages[i].texture==texture)own=1;if(!own)return 0;
+    if(ta_multi_page) {
+        if(!ta_drawing) {
+            ta_get_int(0x8b8d,&ta_saved_program);ta_get_int(0x84e0,&ta_saved_unit);
+            if(ta_saved_program || ta_saved_unit!=0x84c0)return 0;
+            for(int i=0;i<TA_MAX_PAGES;i++) {
+                ta_active_texture(0x84c1u+(unsigned)i);ta_get_int(0x8c1d,&ta_saved_arrays[i]);
+                ta_saved_samplers[i]=0;
+                if(ta_has_sampler){ta_get_int(0x8919,&ta_saved_samplers[i]);ta_bind_sampler((unsigned)i+1,0);}
+                ta_bound_pages[i]=UINT32_MAX;
+            }
+            ta_active_texture(0x84c0);ta_use_program(ta_program);ta_drawing=1;ta_draw_sessions++;
+        }
+        for(int i=0;i<TA_MAX_PAGES;i++) {
+            unsigned page=i<ta_page_count?ta_pages[i].texture:0;
+            if(ta_bound_pages[i]!=page){ta_active_texture(0x84c1u+(unsigned)i);ta_bind(0x8c1a,page);ta_bound_pages[i]=page;}
+        }
+        ta_active_texture(0x84c0);return 1;
+    }
+    if(ta_drawing)return 0;
     ta_get_int(0x8b8d,&ta_saved_program);ta_get_int(0x84e0,&ta_saved_unit);
     if(ta_saved_program || ta_saved_unit!=0x84c0)return 0;
     ta_get_int(0x8c1d,&ta_saved_binding);ta_use_program(ta_program);ta_bind(0x8c1a,texture);ta_drawing=1;return 1;
 }
 static void array_texture_end_draw(void) {
     if(!ta_drawing)return;
+    if(ta_multi_page) {
+        for(int i=0;i<TA_MAX_PAGES;i++) {
+            ta_active_texture(0x84c1u+(unsigned)i);ta_bind(0x8c1a,(unsigned)ta_saved_arrays[i]);
+            if(ta_has_sampler)ta_bind_sampler((unsigned)i+1,(unsigned)ta_saved_samplers[i]);
+        }
+        ta_use_program((unsigned)ta_saved_program);ta_active_texture((unsigned)ta_saved_unit);ta_drawing=0;return;
+    }
     ta_bind(0x8c1a,(unsigned)ta_saved_binding);ta_use_program((unsigned)ta_saved_program);
     ta_active_texture((unsigned)ta_saved_unit);ta_drawing=0;
 }
 static int install_texture_array(void) {
     char env[16];texture_array_enabled=GetEnvironmentVariableA("FPS_TEXTURE_ARRAY",env,sizeof(env))>0;
+    ta_multi_page=GetEnvironmentVariableA("FPS_MULTI_PAGE",env,sizeof(env))>0;
+    ta_track_state=GetEnvironmentVariableA("FPS_TRACK_STATE",env,sizeof(env))>0;
 #ifdef FPS_SE_MOD
-    texture_array_enabled=1;
+    texture_array_enabled=1;ta_multi_page=1;ta_track_state=1;
 #endif
     if(!texture_array_enabled)return 1;
     ta_gl=GetModuleHandleA("opengl32.dll");if(!ta_gl)return 0;

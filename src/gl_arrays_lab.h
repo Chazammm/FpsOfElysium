@@ -3,6 +3,7 @@
 // Preserve submission order and per-vertex position, texture coordinates and RGBA.
 // Only decoration GL_QUADS are buffered. Everything else is a flush boundary.
 #include <stddef.h>
+#include "render_diagnostics.h"
 #define ARR_CAPACITY 16384u
 typedef struct { float xyz[3], uv[4], rgba[4];unsigned source_texture;float source_uv[4]; } ArraysVertex;
 static int arrays_enabled;
@@ -26,6 +27,8 @@ static _Thread_local FpsTextureLayer arrays_layer;
 static _Thread_local FpsAtlasRect arrays_rect;
 static _Thread_local int arrays_context_checked, arrays_context_ok, arrays_has_vbo, arrays_tex_units=1;
 static _Thread_local int arrays_has_vao;
+static _Thread_local int arrays_matrix_mode=0x1700;
+static _Thread_local long long arrays_guard_checks;
 static _Thread_local HGLRC arrays_context;
 static _Thread_local long long arrays_draw_ticks, arrays_draw_calls, arrays_replays, arrays_vertex_count;
 static void (*arrays_get_int)(unsigned,int *);
@@ -57,10 +60,14 @@ static int arrays_check_context(void) {
     if(arrays_context_checked && context==arrays_context) return arrays_context_ok;
     arrays_context_checked=1;arrays_context=context;arrays_context_ok=0;
     arrays_color_known=0;arrays_uv_known=0;arrays_has_vbo=0;arrays_tex_units=1;arrays_has_extended_arrays=0;arrays_has_vao=0;
-    if(!context) return 0;
+    if(!context) {fps_note_fallback(FPS_NO_CONTEXT);return 0;}
     const char *version=(const char *)arrays_get_string(0x1f02);
+    int major=0,minor=0;if(!version || sscanf(version,"%d.%d",&major,&minor)!=2) {fps_note_fallback(FPS_GL_VERSION);return 0;}
+    if(major>3 || (major==3 && minor>=2)) {
+        int profile=0;arrays_get_int(0x9126,&profile);
+        if((profile&1) && !(profile&2)){fps_note_fallback(FPS_CORE_PROFILE);return 0;}
+    }
     const char *ext=(const char *)arrays_get_string(0x1f03);
-    int major=0,minor=0;if(!version || sscanf(version,"%d.%d",&major,&minor)!=2) return 0;
     arrays_get_float(0x0b00,arrays_color);arrays_color_known=1;
     arrays_get_float(0x0b03,arrays_uv);arrays_uv_known=1;
     int texture=0;arrays_get_int(0x8069,&texture);arrays_texture=(unsigned)texture;
@@ -70,9 +77,9 @@ static int arrays_check_context(void) {
     if(major>1 || (major==1 && minor>=3) || arrays_extension(ext,"GL_ARB_multitexture")) {
         arrays_client_active=(void (*)(unsigned))arrays_wgl_proc("glClientActiveTexture");
         if(!arrays_client_active) arrays_client_active=(void (*)(unsigned))arrays_wgl_proc("glClientActiveTextureARB");
-        if((uintptr_t)arrays_client_active<=3 || (uintptr_t)arrays_client_active==UINTPTR_MAX) return 0;
+        if((uintptr_t)arrays_client_active<=3 || (uintptr_t)arrays_client_active==UINTPTR_MAX) {fps_note_fallback(FPS_ENTRY_POINT);return 0;}
         arrays_get_int(0x84e2,&arrays_tex_units);
-        if(arrays_tex_units<1 || arrays_tex_units>32) return 0;
+        if(arrays_tex_units<1 || arrays_tex_units>32) {fps_note_fallback(FPS_TEXTURE_UNIT);return 0;}
     }
     arrays_context_ok=1;return 1;
 }
@@ -89,6 +96,7 @@ static void arrays_restore_current(void) {
     color_valid=0;
 }
 static void arrays_replay(void) {
+    fps_note_fallback(FPS_BATCH_REPLAY);
     unsigned bound=0;int open=0;
     for(unsigned i=0;i<arrays_count;i++) {
         ArraysVertex *v=&arrays_vertices[i];
@@ -133,21 +141,28 @@ static void arrays_flush(void) {
         if(arrays_output_texture && !arrays_output_layered) real_gl_bind(0x0de1,arrays_texture);
         arrays_draw_calls++;
     }
-    if(arrays_output_layered && shader_ok) array_texture_end_draw();
+    if(arrays_output_layered && shader_ok && !ta_multi_page) array_texture_end_draw();
     arrays_vertex_count+=arrays_count;arrays_count=0;arrays_color_dirty=1;arrays_uv_dirty=1;
     arrays_restore_current();arrays_draw_ticks+=now_ticks()-begin;
 }
-static void arrays_end_frame(void) { arrays_flush();arrays_end_client_session(); }
+static void arrays_end_frame(void) { arrays_flush();array_texture_end_draw();arrays_end_client_session(); }
 static int arrays_capture_allowed(void) {
     if(arrays_allowed_cached>=0) return arrays_allowed_cached;
     if(!arrays_check_context()) return 0;
+    arrays_guard_checks++;
     int binding=0,vao=0,mode=0,list=0,unit=0x84c0;
     if(arrays_has_vbo) arrays_get_int(0x8894,&binding);
     if(arrays_has_vao) arrays_get_int(0x85b5,&vao);
     arrays_get_int(0x0c40,&mode);arrays_get_int(0x0b33,&list);
     if(arrays_client_active) arrays_get_int(0x84e0,&unit);
     // Fixed-function 2D only. No VBO binding changes or VBO/FBO ownership.
-    arrays_allowed_cached=!(binding || vao || mode!=0x1c00 || list || unit!=0x84c0 || arrays_is_enabled(0x0b50) || arrays_is_enabled(0x0b57));
+    if(binding)fps_note_fallback(FPS_VBO_BOUND);
+    if(vao)fps_note_fallback(FPS_VAO_BOUND);
+    if(mode!=0x1c00 || list)fps_note_fallback(FPS_RENDER_MODE);
+    if(unit!=0x84c0)fps_note_fallback(FPS_TEXTURE_UNIT);
+    int fixed_state=arrays_is_enabled(0x0b50) || arrays_is_enabled(0x0b57);
+    if(fixed_state)fps_note_fallback(FPS_FIXED_FUNCTION);
+    arrays_allowed_cached=!(binding || vao || mode!=0x1c00 || list || unit!=0x84c0 || fixed_state);
     return arrays_allowed_cached;
 }
 // Required once at the start of each Highest frame. The pinned game does not
@@ -158,6 +173,12 @@ static void arrays_invalidate(void) { arrays_allowed_cached=-1; }
 static void arrays_begin_frame(void) {
     arrays_end_frame();arrays_invalidate();
     if(arrays_enabled && arrays_lazy_bindings) (void)arrays_check_context();
+    if(ta_track_state && arrays_enabled && arrays_context_ok) {
+        arrays_get_float(0x0b00,arrays_color);arrays_get_float(0x0b03,arrays_uv);
+        int texture=0;arrays_get_int(0x8069,&texture);arrays_texture=(unsigned)texture;
+        arrays_get_int(0x0ba0,&arrays_matrix_mode);
+        arrays_color_known=arrays_uv_known=1;
+    }
 }
 static void arrays_begin_probe(unsigned mode) {
 #ifndef FPS_SE_MOD
@@ -192,7 +213,7 @@ static void arrays_begin_probe(unsigned mode) {
                 real_gl_begin(mode);arrays_native_open=1;return;
             }
             unsigned output=layered?layer.array_texture:(mapped?rect.texture:arrays_texture);
-            if(arrays_count && (arrays_output_texture!=output || arrays_output_layered!=layered)) arrays_flush();
+            if(arrays_count && ((arrays_output_texture!=output && !(layered && arrays_output_layered && ta_multi_page)) || arrays_output_layered!=layered)) arrays_flush();
             arrays_output_texture=output;arrays_output_layered=layered;arrays_layer_current=layered;
             arrays_atlas_current=mapped;if(mapped) arrays_rect=rect;if(layered) arrays_layer=layer;
             if(!arrays_color_known) { arrays_get_float(0x0b00,arrays_color);arrays_color_known=1; }
@@ -218,7 +239,7 @@ static void arrays_vertex3_probe(float x,float y,float z) {
     ArraysVertex *v=&arrays_vertices[arrays_count++];v->xyz[0]=x;v->xyz[1]=y;v->xyz[2]=z;
     memcpy(v->uv,arrays_uv,sizeof(v->uv));memcpy(v->rgba,arrays_color,sizeof(v->rgba));
     v->source_texture=arrays_texture;memcpy(v->source_uv,arrays_uv,sizeof(v->source_uv));
-    if(arrays_layer_current) v->uv[2]=(float)arrays_layer.layer;
+    if(arrays_layer_current){v->uv[2]=(float)arrays_layer.layer;if(ta_multi_page)v->uv[3]=(float)arrays_layer.page;}
     if(arrays_atlas_current) {
         float mapped[4];
         if(atlas_remap_uv(&arrays_rect,arrays_uv,mapped)) memcpy(v->uv,mapped,sizeof(mapped));
@@ -249,13 +270,28 @@ static void arrays_bind_probe(unsigned target,unsigned texture) {
 
 // State changes and native DrawArrays always submit pending decorations first.
 #define ARR_INVALIDATE() do { arrays_invalidate();atlas_invalidate_state();array_texture_invalidate_state(); } while(0)
-#define ARR_WRAP0(name) static void (*arrays_real_##name)(void); static void arrays_##name(void){ arrays_end_frame();arrays_real_##name();ARR_INVALIDATE(); }
-#define ARR_WRAP1(name,T) static void (*arrays_real_##name)(T); static void arrays_##name(T a){ arrays_end_frame();arrays_real_##name(a);ARR_INVALIDATE(); }
-#define ARR_WRAP2(name,T,U) static void (*arrays_real_##name)(T,U); static void arrays_##name(T a,U b){ arrays_end_frame();arrays_real_##name(a,b);ARR_INVALIDATE(); }
-#define ARR_WRAP3(name,T,U,V) static void (*arrays_real_##name)(T,U,V); static void arrays_##name(T a,U b,V c){ arrays_end_frame();arrays_real_##name(a,b,c);ARR_INVALIDATE(); }
-#define ARR_WRAP4(name,T,U,V,W) static void (*arrays_real_##name)(T,U,V,W); static void arrays_##name(T a,U b,V c,W d){ arrays_end_frame();arrays_real_##name(a,b,c,d);ARR_INVALIDATE(); }
-ARR_WRAP0(glLoadIdentity) ARR_WRAP0(glPushMatrix) ARR_WRAP0(glPopMatrix) ARR_WRAP0(glFinish) ARR_WRAP0(glFlush)
-ARR_WRAP1(glMatrixMode,unsigned) ARR_WRAP1(glClear,unsigned)
+#define ARR_AFTER_STATE() do {if(!ta_track_state)ARR_INVALIDATE();}while(0)
+static void arrays_matrix_changed(void) {
+    if(!ta_track_state){ARR_INVALIDATE();return;}
+    if(arrays_matrix_mode==0x1702)array_texture_invalidate_state();
+}
+#define ARR_WRAP0(name) static void (*arrays_real_##name)(void); static void arrays_##name(void){ arrays_end_frame();arrays_real_##name();ARR_AFTER_STATE(); }
+#define ARR_WRAP1(name,T) static void (*arrays_real_##name)(T); static void arrays_##name(T a){ arrays_end_frame();arrays_real_##name(a);ARR_AFTER_STATE(); }
+#define ARR_WRAP2(name,T,U) static void (*arrays_real_##name)(T,U); static void arrays_##name(T a,U b){ arrays_end_frame();arrays_real_##name(a,b);ARR_AFTER_STATE(); }
+#define ARR_WRAP3(name,T,U,V) static void (*arrays_real_##name)(T,U,V); static void arrays_##name(T a,U b,V c){ arrays_end_frame();arrays_real_##name(a,b,c);ARR_AFTER_STATE(); }
+#define ARR_WRAP4(name,T,U,V,W) static void (*arrays_real_##name)(T,U,V,W); static void arrays_##name(T a,U b,V c,W d){ arrays_end_frame();arrays_real_##name(a,b,c,d);ARR_AFTER_STATE(); }
+#define ARR_MATRIX0(name) static void (*arrays_real_##name)(void);static void arrays_##name(void){arrays_end_frame();arrays_real_##name();arrays_matrix_changed();}
+#define ARR_MATRIX3(name) static void (*arrays_real_##name)(float,float,float);static void arrays_##name(float a,float b,float c){arrays_end_frame();arrays_real_##name(a,b,c);arrays_matrix_changed();}
+ARR_MATRIX0(glLoadIdentity) ARR_MATRIX0(glPushMatrix) ARR_MATRIX0(glPopMatrix)
+ARR_WRAP0(glFinish) ARR_WRAP0(glFlush)
+static void (*arrays_real_glMatrixMode)(unsigned);
+static void arrays_glMatrixMode(unsigned mode){
+    arrays_end_frame();arrays_real_glMatrixMode(mode);
+    if(mode>=0x1700 && mode<=0x1702)arrays_matrix_mode=(int)mode;
+    else {arrays_get_int(0x0ba0,&arrays_matrix_mode);ARR_INVALIDATE();}
+    ARR_AFTER_STATE();
+}
+ARR_WRAP1(glClear,unsigned)
 ARR_WRAP1(glEnableClientState,unsigned) ARR_WRAP1(glDisableClientState,unsigned) ARR_WRAP1(glLineWidth,float) ARR_WRAP1(glDepthMask,unsigned char)
 ARR_WRAP2(glBlendFunc,unsigned,unsigned) ARR_WRAP2(glAlphaFunc,unsigned,float) ARR_WRAP2(glPixelStorei,unsigned,int)
 ARR_WRAP2(glFogfv,unsigned,const float *) ARR_WRAP2(glFogf,unsigned,float) ARR_WRAP2(glFogi,unsigned,int)
@@ -267,25 +303,32 @@ static void arrays_glDeleteTextures(int n,const unsigned *ids) {
     arrays_real_glDeleteTextures(n,ids);
     for(int i=0;i<n;i++)if(ids[i]==arrays_texture){arrays_texture=0;arrays_binding_dirty=0;}
 }
-ARR_WRAP3(glScalef,float,float,float) ARR_WRAP3(glTranslatef,float,float,float)
-ARR_WRAP3(glTexEnvi,unsigned,unsigned,int)
+ARR_MATRIX3(glScalef) ARR_MATRIX3(glTranslatef)
+static void (*arrays_real_glTexEnvi)(unsigned,unsigned,int);
+static void arrays_glTexEnvi(unsigned target,unsigned name,int value) {
+    arrays_end_frame();arrays_real_glTexEnvi(target,name,value);
+    if(target==0x2300 && name==0x2200)ta_modulate=value==0x2100;
+    ARR_AFTER_STATE();
+}
 static void (*arrays_real_glTexParameteri)(unsigned,unsigned,int);
-static void arrays_glTexParameteri(unsigned a,unsigned b,int c) { arrays_end_frame();atlas_forget(arrays_texture);array_texture_forget(arrays_texture);arrays_real_glTexParameteri(a,b,c);ARR_INVALIDATE(); }
+static void arrays_glTexParameteri(unsigned a,unsigned b,int c) { arrays_end_frame();atlas_forget(arrays_texture);array_texture_forget(arrays_texture);arrays_real_glTexParameteri(a,b,c);ARR_AFTER_STATE(); }
 ARR_WRAP3(glMaterialfv,unsigned,unsigned,const float *) ARR_WRAP3(glLightfv,unsigned,unsigned,const float *)
-ARR_WRAP4(glRotatef,float,float,float,float) ARR_WRAP4(glViewport,int,int,int,int) ARR_WRAP4(glScissor,int,int,int,int)
+static void (*arrays_real_glRotatef)(float,float,float,float);
+static void arrays_glRotatef(float a,float b,float c,float d){arrays_end_frame();arrays_real_glRotatef(a,b,c,d);arrays_matrix_changed();}
+ARR_WRAP4(glViewport,int,int,int,int) ARR_WRAP4(glScissor,int,int,int,int)
 ARR_WRAP4(glClearColor,float,float,float,float)
 ARR_WRAP4(glVertexPointer,int,unsigned,int,const void *) ARR_WRAP4(glTexCoordPointer,int,unsigned,int,const void *)
 ARR_WRAP1(glShadeModel,unsigned)
 static void (*arrays_real_glEnable)(unsigned);
-static void arrays_glEnable(unsigned cap) {arrays_end_frame();arrays_real_glEnable(cap);ARR_INVALIDATE();}
+static void arrays_glEnable(unsigned cap) {arrays_end_frame();arrays_real_glEnable(cap);ta_note_cap(cap,1);if(cap==0x0b50 || cap==0x0b57)arrays_invalidate();ARR_AFTER_STATE();}
 static void (*arrays_real_glDisable)(unsigned);
-static void arrays_glDisable(unsigned cap) {arrays_end_frame();arrays_real_glDisable(cap);ARR_INVALIDATE();}
+static void arrays_glDisable(unsigned cap) {arrays_end_frame();arrays_real_glDisable(cap);ta_note_cap(cap,0);if(cap==0x0b50 || cap==0x0b57)arrays_invalidate();ARR_AFTER_STATE();}
 static void (*arrays_real_glDrawArrays)(unsigned,int,int);
 static void arrays_glDrawArrays(unsigned mode,int first,int count) {arrays_end_frame();arrays_real_glDrawArrays(mode,first,count);arrays_color_known=0;arrays_uv_known=0;}
 static void (*arrays_real_glOrtho)(double,double,double,double,double,double);
-static void arrays_glOrtho(double a,double b,double c,double d,double e,double f){arrays_end_frame();arrays_real_glOrtho(a,b,c,d,e,f);ARR_INVALIDATE();}
+static void arrays_glOrtho(double a,double b,double c,double d,double e,double f){arrays_end_frame();arrays_real_glOrtho(a,b,c,d,e,f);arrays_matrix_changed();}
 static void (*arrays_real_glTexImage2D)(unsigned,int,int,int,int,int,unsigned,unsigned,const void *);
-static void arrays_glTexImage2D(unsigned a,int b,int c,int d,int e,int f,unsigned g,unsigned h,const void *i){arrays_end_frame();atlas_forget(arrays_texture);array_texture_forget(arrays_texture);arrays_real_glTexImage2D(a,b,c,d,e,f,g,h,i);ARR_INVALIDATE();}
+static void arrays_glTexImage2D(unsigned a,int b,int c,int d,int e,int f,unsigned g,unsigned h,const void *i){arrays_end_frame();atlas_forget(arrays_texture);array_texture_forget(arrays_texture);arrays_real_glTexImage2D(a,b,c,d,e,f,g,h,i);ARR_AFTER_STATE();}
 static int (WINAPI *arrays_real_gluBuild2DMipmaps)(unsigned,int,int,int,unsigned,unsigned,const void *);
 static int WINAPI arrays_gluBuild2DMipmaps(unsigned target,int components,int width,int height,unsigned format,unsigned type,const void *pixels) {
     arrays_end_frame();
@@ -294,7 +337,7 @@ static int WINAPI arrays_gluBuild2DMipmaps(unsigned target,int components,int wi
         atlas_forget((unsigned)binding);array_texture_forget((unsigned)binding);
     }
     int result=arrays_real_gluBuild2DMipmaps(target,components,width,height,format,type,pixels);
-    ARR_INVALIDATE();return result;
+    ARR_AFTER_STATE();return result;
 }
 static unsigned (*arrays_real_glGetError)(void);
 static unsigned arrays_glGetError(void){arrays_flush();return arrays_real_glGetError();}
@@ -303,27 +346,11 @@ static unsigned arrays_glGetError(void){arrays_flush();return arrays_real_glGetE
 #undef ARR_WRAP2
 #undef ARR_WRAP3
 #undef ARR_WRAP4
+#undef ARR_MATRIX0
+#undef ARR_MATRIX3
 
-static int install_gl_arrays(void) {
-    char env[16];arrays_enabled=GetEnvironmentVariableA("FPS_GL_ARRAYS",env,sizeof(env))>0;
-    arrays_lazy_bindings=GetEnvironmentVariableA("FPS_LAZY_BINDS",env,sizeof(env))>0;
-    arrays_client_sessions=GetEnvironmentVariableA("FPS_ARRAY_SESSIONS",env,sizeof(env))>0;
-#ifdef FPS_SE_MOD
-    arrays_enabled=1;arrays_lazy_bindings=1;arrays_client_sessions=1;
-#endif
-    if(!arrays_enabled) return 1;
-    // Do not combine the two submission methods. Oracle toggles arrays_enabled separately.
-    batch_enabled=0;color_cache_enabled=0;
-    HMODULE gl=GetModuleHandleA("opengl32.dll");if(!gl) return 0;
-#define ARR_PROC(var,name) do{ *(void **)&var=(void *)GetProcAddress(gl,name);if(!var)return 0; }while(0)
-    ARR_PROC(arrays_get_int,"glGetIntegerv");ARR_PROC(arrays_get_float,"glGetFloatv");ARR_PROC(arrays_get_string,"glGetString");
-    ARR_PROC(arrays_is_enabled,"glIsEnabled");ARR_PROC(arrays_push_client,"glPushClientAttrib");ARR_PROC(arrays_pop_client,"glPopClientAttrib");
-    ARR_PROC(arrays_enable_client,"glEnableClientState");ARR_PROC(arrays_disable_client,"glDisableClientState");
-    ARR_PROC(arrays_vertex_pointer,"glVertexPointer");ARR_PROC(arrays_tex_pointer,"glTexCoordPointer");ARR_PROC(arrays_color_pointer,"glColorPointer");
-    ARR_PROC(arrays_draw,"glDrawArrays");ARR_PROC(arrays_tex2,"glTexCoord2f");ARR_PROC(arrays_tex4,"glTexCoord4f");ARR_PROC(arrays_vertex3,"glVertex3f");
-    ARR_PROC(arrays_current_context,"wglGetCurrentContext");ARR_PROC(arrays_wgl_proc,"wglGetProcAddress");
-#undef ARR_PROC
-    struct { uintptr_t rva;void *hook;const char *name;void *save; } hooks[]={
+typedef struct { uintptr_t rva;void *hook;const char *name;void *save; } FpsGlImport;
+static FpsGlImport arrays_imports[]={
         {0x33a3e0,(void *)arrays_begin_probe,"glBegin",NULL},{0x33a410,(void *)arrays_end_probe,"glEnd",NULL},
         {0x33a400,(void *)arrays_tex2_probe,"glTexCoord2f",NULL},{0x33a420,(void *)arrays_vertex3_probe,"glVertex3f",NULL},
         {0x33a460,(void *)arrays_color_probe,"glColor4f",NULL},{0x33a388,(void *)arrays_color3_probe,"glColor3f",NULL},
@@ -345,17 +372,37 @@ static int install_gl_arrays(void) {
         ARR_HOOK(0x33a4b8,glEnableClientState)
 #undef ARR_HOOK
     };
+
+static int install_gl_arrays(void) {
+    char env[16];arrays_enabled=GetEnvironmentVariableA("FPS_GL_ARRAYS",env,sizeof(env))>0;
+    arrays_lazy_bindings=GetEnvironmentVariableA("FPS_LAZY_BINDS",env,sizeof(env))>0;
+    arrays_client_sessions=GetEnvironmentVariableA("FPS_ARRAY_SESSIONS",env,sizeof(env))>0;
+#ifdef FPS_SE_MOD
+    arrays_enabled=1;arrays_lazy_bindings=1;arrays_client_sessions=1;
+#endif
+    if(!arrays_enabled) return 1;
+    // Do not combine the two submission methods. Oracle toggles arrays_enabled separately.
+    batch_enabled=0;color_cache_enabled=0;
+    HMODULE gl=GetModuleHandleA("opengl32.dll");if(!gl) return 0;
+#define ARR_PROC(var,name) do{ *(void **)&var=(void *)GetProcAddress(gl,name);if(!var)return 0; }while(0)
+    ARR_PROC(arrays_get_int,"glGetIntegerv");ARR_PROC(arrays_get_float,"glGetFloatv");ARR_PROC(arrays_get_string,"glGetString");
+    ARR_PROC(arrays_is_enabled,"glIsEnabled");ARR_PROC(arrays_push_client,"glPushClientAttrib");ARR_PROC(arrays_pop_client,"glPopClientAttrib");
+    ARR_PROC(arrays_enable_client,"glEnableClientState");ARR_PROC(arrays_disable_client,"glDisableClientState");
+    ARR_PROC(arrays_vertex_pointer,"glVertexPointer");ARR_PROC(arrays_tex_pointer,"glTexCoordPointer");ARR_PROC(arrays_color_pointer,"glColorPointer");
+    ARR_PROC(arrays_draw,"glDrawArrays");ARR_PROC(arrays_tex2,"glTexCoord2f");ARR_PROC(arrays_tex4,"glTexCoord4f");ARR_PROC(arrays_vertex3,"glVertex3f");
+    ARR_PROC(arrays_current_context,"wglGetCurrentContext");ARR_PROC(arrays_wgl_proc,"wglGetProcAddress");
+#undef ARR_PROC
     // Resolve native addresses before replacing slots, never chain the batching wrappers.
-    for(size_t i=0;i<sizeof(hooks)/sizeof(hooks[0]);i++) {
-        void *native=(void *)GetProcAddress(gl,hooks[i].name);if(!native)return 0;
-        if(hooks[i].save) memcpy(hooks[i].save,&native,sizeof(native));
+    for(size_t i=0;i<sizeof(arrays_imports)/sizeof(arrays_imports[0]);i++) {
+        void *native=(void *)GetProcAddress(gl,arrays_imports[i].name);if(!native)return 0;
+        if(arrays_imports[i].save) memcpy(arrays_imports[i].save,&native,sizeof(native));
     }
     // Preserve the existing GLU loader/forwarder chain. System GLU performs
     // uploads internally, so the executable's glTexImage2D hook cannot see it.
     memcpy(&arrays_real_gluBuild2DMipmaps,detail_base+0x33a000,sizeof(arrays_real_gluBuild2DMipmaps));
     if(!arrays_real_gluBuild2DMipmaps)return 0;
-    for(size_t i=0;i<sizeof(hooks)/sizeof(hooks[0]);i++) {
-        void *ignored=NULL;if(!replace_gl_import(hooks[i].rva,hooks[i].hook,&ignored))return 0;
+    for(size_t i=0;i<sizeof(arrays_imports)/sizeof(arrays_imports[0]);i++) {
+        void *ignored=NULL;if(!replace_gl_import(arrays_imports[i].rva,arrays_imports[i].hook,&ignored))return 0;
     }
     void *ignored=NULL;
     return replace_gl_import(0x33a000,(void *)arrays_gluBuild2DMipmaps,&ignored);
